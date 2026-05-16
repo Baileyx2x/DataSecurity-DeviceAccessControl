@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from sqlalchemy import String, Integer, DateTime, ForeignKey, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 
@@ -17,3 +17,5 @@ class Alert(Base):
     message:    Mapped[str]      = mapped_column(Text)
     status:     Mapped[str]      = mapped_column(String(16), default="open")    # open/ack/closed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    rule = relationship("Rule", lazy="joined")

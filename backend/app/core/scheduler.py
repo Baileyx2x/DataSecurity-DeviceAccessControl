@@ -7,7 +7,7 @@ from ..config import settings
 from ..models.base import SessionLocal
 from ..models.device import Device
 from ..utils.logger import logger
-from . import discovery, fingerprint, registry, telemetry, risk_engine
+from . import discovery, fingerprint, registry, telemetry, risk_engine, blocker
 
 
 _scheduler: BackgroundScheduler | None = None
@@ -27,7 +27,20 @@ def _scan_job():
         # 离线检测 + 风险评估
         telemetry.reap_offline(db)
         for dev in db.query(Device).filter(Device.status == "online").all():
-            risk_engine.evaluate_device(db, dev)
+            alerts = risk_engine.evaluate_device(db, dev)
+            # 规则 action=block → 自动阻断
+            for a in alerts:
+                if a.rule and a.rule.action == "block" and dev.status != "blocked":
+                    logger.info(
+                        f"[scheduler] auto-block: device={dev.ip} "
+                        f"rule={a.rule.name}"
+                    )
+                    db.refresh(dev)
+                    blocker.block_device(
+                        db, dev,
+                        actor="system",
+                        reason=f"auto: rule '{a.rule.name}' triggered",
+                    )
     except Exception as e:
         logger.exception(f"[scheduler] scan job failed: {e}")
     finally:
