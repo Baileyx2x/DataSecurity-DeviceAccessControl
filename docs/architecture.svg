@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 780" font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <linearGradient id="lg-presentation" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#e6f4ff"/>
+      <stop offset="100%" stop-color="#bae0ff"/>
+    </linearGradient>
+    <linearGradient id="lg-service" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f6ffed"/>
+      <stop offset="100%" stop-color="#b7eb8f"/>
+    </linearGradient>
+    <linearGradient id="lg-data" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fff7e6"/>
+      <stop offset="100%" stop-color="#ffd591"/>
+    </linearGradient>
+    <linearGradient id="lg-collector" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fff1f0"/>
+      <stop offset="100%" stop-color="#ffa39e"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#595959"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Title -->
+  <text x="550" y="36" text-anchor="middle" font-size="22" font-weight="700" fill="#1f1f1f">设备接入识别与阻断控制系统 — 总体架构</text>
+  <text x="550" y="58" text-anchor="middle" font-size="13" fill="#8c8c8c">Python (Scapy + FastAPI) · React (Ant Design) · SQLite</text>
+
+  <!-- =================== 表示层 =================== -->
+  <rect x="40" y="85" width="1020" height="120" rx="10" fill="url(#lg-presentation)" stroke="#1677ff" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="60" y="110" font-size="15" font-weight="700" fill="#0958d9">① 表示层 (Presentation Layer) — React 18 + Ant Design 5</text>
+
+  <g font-size="12" fill="#1f1f1f">
+    <rect x="70"  y="130" width="150" height="58" rx="6" fill="#ffffff" stroke="#1677ff"/>
+    <text x="145" y="153" text-anchor="middle" font-weight="600">仪表盘</text>
+    <text x="145" y="172" text-anchor="middle" fill="#595959">Dashboard</text>
+
+    <rect x="240" y="130" width="150" height="58" rx="6" fill="#ffffff" stroke="#1677ff"/>
+    <text x="315" y="153" text-anchor="middle" font-weight="600">设备管理</text>
+    <text x="315" y="172" text-anchor="middle" fill="#595959">Devices</text>
+
+    <rect x="410" y="130" width="150" height="58" rx="6" fill="#ffffff" stroke="#1677ff"/>
+    <text x="485" y="153" text-anchor="middle" font-weight="600">告警中心</text>
+    <text x="485" y="172" text-anchor="middle" fill="#595959">Alerts</text>
+
+    <rect x="580" y="130" width="150" height="58" rx="6" fill="#ffffff" stroke="#1677ff"/>
+    <text x="655" y="153" text-anchor="middle" font-weight="600">规则配置</text>
+    <text x="655" y="172" text-anchor="middle" fill="#595959">Rules</text>
+
+    <rect x="750" y="130" width="150" height="58" rx="6" fill="#ffffff" stroke="#1677ff"/>
+    <text x="825" y="153" text-anchor="middle" font-weight="600">审计日志</text>
+    <text x="825" y="172" text-anchor="middle" fill="#595959">Audit</text>
+
+    <rect x="920" y="130" width="120" height="58" rx="6" fill="#ffffff" stroke="#1677ff"/>
+    <text x="980" y="153" text-anchor="middle" font-weight="600">实时通知</text>
+    <text x="980" y="172" text-anchor="middle" fill="#595959">WebSocket</text>
+  </g>
+
+  <!-- arrows from Presentation to Service -->
+  <line x1="450" y1="205" x2="450" y2="240" stroke="#595959" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="650" y1="240" x2="650" y2="205" stroke="#595959" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="470" y="225" font-size="11" fill="#595959">REST /api/v1</text>
+  <text x="555" y="225" font-size="11" fill="#595959">WS /ws/realtime</text>
+
+  <!-- =================== 业务逻辑层 =================== -->
+  <rect x="40" y="245" width="1020" height="200" rx="10" fill="url(#lg-service)" stroke="#52c41a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="60" y="270" font-size="15" font-weight="700" fill="#389e0d">② 业务逻辑层 (Service Layer) — FastAPI + APScheduler</text>
+
+  <g font-size="12" fill="#1f1f1f">
+    <rect x="70"  y="290" width="180" height="65" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="160" y="313" text-anchor="middle" font-weight="600">设备登记 Registry</text>
+    <text x="160" y="332" text-anchor="middle" fill="#595959">白名单/黑名单/未知</text>
+    <text x="160" y="347" text-anchor="middle" fill="#8c8c8c" font-size="11">registry.py</text>
+
+    <rect x="270" y="290" width="180" height="65" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="360" y="313" text-anchor="middle" font-weight="600">指纹画像 Fingerprint</text>
+    <text x="360" y="332" text-anchor="middle" fill="#595959">OUI / OS / Hostname</text>
+    <text x="360" y="347" text-anchor="middle" fill="#8c8c8c" font-size="11">fingerprint.py</text>
+
+    <rect x="470" y="290" width="180" height="65" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="560" y="313" text-anchor="middle" font-weight="600">风险引擎 Risk Engine</text>
+    <text x="560" y="332" text-anchor="middle" fill="#595959">规则匹配 / 等级判定</text>
+    <text x="560" y="347" text-anchor="middle" fill="#8c8c8c" font-size="11">risk_engine.py</text>
+
+    <rect x="670" y="290" width="180" height="65" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="760" y="313" text-anchor="middle" font-weight="600">阻断控制 Blocker</text>
+    <text x="760" y="332" text-anchor="middle" fill="#595959">ARP / iptables</text>
+    <text x="760" y="347" text-anchor="middle" fill="#8c8c8c" font-size="11">blocker.py</text>
+
+    <rect x="870" y="290" width="170" height="65" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="955" y="313" text-anchor="middle" font-weight="600">审计 Audit</text>
+    <text x="955" y="332" text-anchor="middle" fill="#595959">操作 / 告警 / 放行</text>
+    <text x="955" y="347" text-anchor="middle" fill="#8c8c8c" font-size="11">audit.py</text>
+
+    <rect x="170" y="370" width="220" height="55" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="280" y="393" text-anchor="middle" font-weight="600">状态采集 Telemetry</text>
+    <text x="280" y="412" text-anchor="middle" fill="#8c8c8c" font-size="11">telemetry.py</text>
+
+    <rect x="420" y="370" width="220" height="55" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="530" y="393" text-anchor="middle" font-weight="600">任务调度 Scheduler</text>
+    <text x="530" y="412" text-anchor="middle" fill="#8c8c8c" font-size="11">APScheduler</text>
+
+    <rect x="670" y="370" width="220" height="55" rx="6" fill="#ffffff" stroke="#52c41a"/>
+    <text x="780" y="393" text-anchor="middle" font-weight="600">WebSocket 管理</text>
+    <text x="780" y="412" text-anchor="middle" fill="#8c8c8c" font-size="11">ws/manager.py</text>
+  </g>
+
+  <!-- arrows from Service to Data -->
+  <line x1="350" y1="445" x2="350" y2="480" stroke="#595959" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="750" y1="445" x2="750" y2="480" stroke="#595959" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="370" y="465" font-size="11" fill="#595959">读/写</text>
+  <text x="770" y="465" font-size="11" fill="#595959">审计落盘</text>
+
+  <!-- =================== 数据层 =================== -->
+  <rect x="40" y="485" width="1020" height="115" rx="10" fill="url(#lg-data)" stroke="#fa8c16" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="60" y="510" font-size="15" font-weight="700" fill="#d46b08">③ 数据层 (Data Layer) — SQLite + SQLAlchemy ORM</text>
+
+  <g font-size="12" fill="#1f1f1f">
+    <rect x="80"  y="530" width="170" height="55" rx="6" fill="#ffffff" stroke="#fa8c16"/>
+    <text x="165" y="552" text-anchor="middle" font-weight="600">device</text>
+    <text x="165" y="571" text-anchor="middle" fill="#8c8c8c" font-size="11">设备资产表</text>
+
+    <rect x="270" y="530" width="170" height="55" rx="6" fill="#ffffff" stroke="#fa8c16"/>
+    <text x="355" y="552" text-anchor="middle" font-weight="600">access_log</text>
+    <text x="355" y="571" text-anchor="middle" fill="#8c8c8c" font-size="11">接入历史</text>
+
+    <rect x="460" y="530" width="170" height="55" rx="6" fill="#ffffff" stroke="#fa8c16"/>
+    <text x="545" y="552" text-anchor="middle" font-weight="600">alert</text>
+    <text x="545" y="571" text-anchor="middle" fill="#8c8c8c" font-size="11">告警记录</text>
+
+    <rect x="650" y="530" width="170" height="55" rx="6" fill="#ffffff" stroke="#fa8c16"/>
+    <text x="735" y="552" text-anchor="middle" font-weight="600">rule</text>
+    <text x="735" y="571" text-anchor="middle" fill="#8c8c8c" font-size="11">风险规则</text>
+
+    <rect x="840" y="530" width="170" height="55" rx="6" fill="#ffffff" stroke="#fa8c16"/>
+    <text x="925" y="552" text-anchor="middle" font-weight="600">audit_log</text>
+    <text x="925" y="571" text-anchor="middle" fill="#8c8c8c" font-size="11">审计日志</text>
+  </g>
+
+  <!-- arrows from Collector to Service -->
+  <line x1="550" y1="640" x2="550" y2="445" stroke="#595959" stroke-width="1.5" stroke-dasharray="0" marker-end="url(#arrow)"/>
+  <text x="560" y="465" font-size="11" fill="#595959">(IP, MAC) 列表 / 嗅探事件</text>
+
+  <!-- =================== 采集层 =================== -->
+  <rect x="40" y="640" width="1020" height="120" rx="10" fill="url(#lg-collector)" stroke="#f5222d" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="60" y="665" font-size="15" font-weight="700" fill="#cf1322">④ 采集层 (Collector Layer) — Scapy / nmap / 网络监听</text>
+
+  <g font-size="12" fill="#1f1f1f">
+    <rect x="80"  y="685" width="200" height="60" rx="6" fill="#ffffff" stroke="#f5222d"/>
+    <text x="180" y="708" text-anchor="middle" font-weight="600">ARP 扫描</text>
+    <text x="180" y="727" text-anchor="middle" fill="#8c8c8c" font-size="11">Scapy srp() 广播</text>
+
+    <rect x="300" y="685" width="200" height="60" rx="6" fill="#ffffff" stroke="#f5222d"/>
+    <text x="400" y="708" text-anchor="middle" font-weight="600">ICMP / Nmap 探测</text>
+    <text x="400" y="727" text-anchor="middle" fill="#8c8c8c" font-size="11">活性 + 端口/服务</text>
+
+    <rect x="520" y="685" width="200" height="60" rx="6" fill="#ffffff" stroke="#f5222d"/>
+    <text x="620" y="708" text-anchor="middle" font-weight="600">被动嗅探</text>
+    <text x="620" y="727" text-anchor="middle" fill="#8c8c8c" font-size="11">mDNS / DHCP / NetBIOS</text>
+
+    <rect x="740" y="685" width="200" height="60" rx="6" fill="#ffffff" stroke="#f5222d"/>
+    <text x="840" y="708" text-anchor="middle" font-weight="600">阻断执行</text>
+    <text x="840" y="727" text-anchor="middle" fill="#8c8c8c" font-size="11">伪造 ARP / nftables 下发</text>
+  </g>
+
+  <!-- 用户/局域网注释 -->
+  <text x="980" y="754" font-size="11" fill="#8c8c8c" text-anchor="end">└ 直接作用于 LAN (eth0 / wlan0)</text>
+</svg>

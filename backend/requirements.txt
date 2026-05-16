@@ -1,0 +1,17 @@
+fastapi==0.110.*
+uvicorn[standard]==0.27.*
+pydantic==2.6.*
+pydantic-settings==2.2.*
+sqlalchemy==2.0.*
+alembic==1.13.*
+# Windows 需另装 Npcap (安装时勾选 "WinPcap API-compatible Mode"): https://npcap.com
+scapy==2.5.*
+python-nmap==0.7.*
+manuf==1.1.*
+apscheduler==3.10.*
+websockets==12.0.*
+loguru==0.7.*
+python-dotenv==1.0.*
+httpx==0.27.*
+pytest==8.0.*
+pytest-asyncio==0.23.*
