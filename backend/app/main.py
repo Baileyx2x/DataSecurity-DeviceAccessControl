@@ -21,6 +21,7 @@ from .api import (
     routes_blocker,
     routes_audit,
     routes_ws,
+    routes_settings,
 )
 
 
@@ -53,6 +54,7 @@ app.include_router(routes_scan.router,    prefix="/api/v1/scan",    tags=["scan"
 app.include_router(routes_risk.router,    prefix="/api/v1",         tags=["risk"])
 app.include_router(routes_blocker.router, prefix="/api/v1/blocker", tags=["blocker"])
 app.include_router(routes_audit.router,   prefix="/api/v1/audit",   tags=["audit"])
+app.include_router(routes_settings.router, prefix="/api/v1/settings", tags=["settings"])
 
 # WebSocket
 app.include_router(routes_ws.router, prefix="/ws", tags=["ws"])

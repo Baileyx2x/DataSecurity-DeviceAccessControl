@@ -1,4 +1,4 @@
-"""风险判定规则引擎 — 加载 rule 表,按设备评估并生成告警。"""
+"""风险判定规则引擎 — 加载 rule 表,按设备评估并生成告警,广播 WebSocket。"""
 
 import json
 from datetime import datetime
@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from ..models.device import Device
 from ..models.rule import Rule
 from ..models.alert import Alert
+from ..ws.manager import manager
+from ..ws.events import alert_created
 
 
 OPS = {
@@ -49,4 +51,15 @@ def evaluate_device(db: Session, device: Device) -> list[Alert]:
             triggered.append(a)
             device.risk_level = max(device.risk_level, rule.level)
     db.commit()
+
+    # 广播告警事件
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            for a in triggered:
+                loop.create_task(manager.broadcast(alert_created(a)))
+    except Exception:
+        pass
+
     return triggered

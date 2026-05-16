@@ -1,6 +1,7 @@
 import { Layout, Menu } from "antd";
 import { Link, useLocation } from "react-router-dom";
 import { AppRouter } from "./router";
+import RealtimeBanner from "./components/RealtimeBanner";
 
 const { Header, Sider, Content } = Layout;
 
@@ -24,6 +25,7 @@ export default function App() {
       <Layout>
         <Header style={{ background: "#fff", paddingLeft: 24 }}>设备接入识别与阻断控制系统</Header>
         <Content style={{ padding: 24 }}>
+          <RealtimeBanner />
           <AppRouter />
         </Content>
       </Layout>

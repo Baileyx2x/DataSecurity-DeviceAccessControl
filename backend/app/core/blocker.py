@@ -33,6 +33,8 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..utils.logger import logger
 from ..models.device import Device
+from ..ws.manager import manager
+from ..ws.events import device_blocked as ws_blocked, device_unblocked as ws_unblocked
 from .audit import write_audit
 
 
@@ -468,6 +470,14 @@ def block_device(
     write_audit(db, actor=actor, action="block",
                 target_device_id=device.id, reason=reason)
 
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(manager.broadcast(ws_blocked(device, reason)))
+    except Exception:
+        pass
+
 
 def unblock_device(
     db: Session,
@@ -511,3 +521,11 @@ def unblock_device(
     db.commit()
     write_audit(db, actor=actor, action="unblock",
                 target_device_id=device.id, reason=reason)
+
+    import asyncio
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(manager.broadcast(ws_unblocked(device, reason)))
+    except Exception:
+        pass
