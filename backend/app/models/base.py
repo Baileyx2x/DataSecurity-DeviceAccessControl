@@ -30,5 +30,5 @@ def get_session() -> Session:
 
 def init_db() -> None:
     """启动时调用,确保所有表存在。"""
-    from . import device, access_log, alert, rule, audit_log  # noqa: F401
+    from . import device, access_log, alert, rule, audit_log, traffic  # noqa: F401
     Base.metadata.create_all(bind=engine)

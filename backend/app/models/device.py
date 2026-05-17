@@ -21,4 +21,5 @@ class Device(Base):
     status:     Mapped[str]      = mapped_column(String(16), default="offline")  # online/offline/blocked
     first_seen: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_seen:  Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # 定时阻断到期
     note:       Mapped[str | None] = mapped_column(Text, nullable=True)

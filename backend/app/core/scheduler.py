@@ -24,8 +24,15 @@ def _scan_job():
                 vendor=fp.vendor, hostname=fp.hostname, os_guess=fp.os_guess,
             )
             telemetry.mark_online(db, dev.id, dev.ip)
-        # 离线检测 + 风险评估
+        # 离线检测 + 定时阻断到期 + 流量采样 + 风险评估
         telemetry.reap_offline(db)
+        _expire_blocks(db)
+        try:
+            cidr = settings.lan_cidr or discovery.detect_lan_cidr()
+            iface = settings.lan_interface or discovery.detect_interface()
+            telemetry.sample_traffic(db, cidr, iface, duration=5)
+        except Exception:
+            pass
         for dev in db.query(Device).filter(Device.status == "online").all():
             alerts = risk_engine.evaluate_device(db, dev)
             # 规则 action=block → 自动阻断
@@ -53,6 +60,23 @@ def start_scheduler():
     _scheduler.add_job(_scan_job, "interval", seconds=settings.scan_interval_sec, id="scan")
     _scheduler.start()
     logger.info(f"[scheduler] started (interval={settings.scan_interval_sec}s)")
+
+
+def _expire_blocks(db: Session) -> int:
+    """检查 blocked_until 过期的设备并自动解除阻断。"""
+    from datetime import datetime
+    now = datetime.utcnow()
+    expired = db.query(Device).filter(
+        Device.status == "blocked",
+        Device.blocked_until.isnot(None),
+        Device.blocked_until <= now,
+    ).all()
+    for dev in expired:
+        logger.info(f"[scheduler] auto-unblock expired: {dev.ip}")
+        blocker.unblock_device(db, dev, actor="system", reason="定时阻断到期")
+    if expired:
+        db.commit()
+    return len(expired)
 
 
 def shutdown_scheduler():

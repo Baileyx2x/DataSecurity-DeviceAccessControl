@@ -368,10 +368,12 @@ def block_device(
     gateway_ip: str = "",
     actor: str = "system",
     reason: str = "",
+    blocked_until=None,  # datetime | None,定时到期自动解除
 ) -> None:
     logger.info(
         f"[blocker] block_device called: device_id={device.id} "
         f"ip={device.ip} backend={settings.blocker_backend}"
+        + (f" until={blocked_until}" if blocked_until else "")
     )
     if device.id in _active:
         logger.warning(f"[blocker] device {device.id} already active, skip")
@@ -466,6 +468,8 @@ def block_device(
         _active[device.id] = threading.Event()
 
     device.status = "blocked"
+    if blocked_until is not None:
+        device.blocked_until = blocked_until
     db.commit()
     write_audit(db, actor=actor, action="block",
                 target_device_id=device.id, reason=reason)
@@ -518,6 +522,7 @@ def unblock_device(
         _netsh_unblock(device.ip)
 
     device.status = "offline"
+    device.blocked_until = None
     db.commit()
     write_audit(db, actor=actor, action="unblock",
                 target_device_id=device.id, reason=reason)
