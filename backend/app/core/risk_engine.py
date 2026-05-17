@@ -22,7 +22,6 @@ OPS = {
 
 
 def _eval_condition(cond: dict, ctx: dict) -> bool:
-    """递归求值 condition_json。"""
     if "all" in cond:
         return all(_eval_condition(c, ctx) for c in cond["all"])
     if "any" in cond:
@@ -31,8 +30,13 @@ def _eval_condition(cond: dict, ctx: dict) -> bool:
     return OPS[op](ctx.get(field), value)
 
 
-def evaluate_device(db: Session, device: Device) -> list[Alert]:
-    """对单个设备运行所有启用规则,返回触发的告警(已落库)。"""
+def load_enabled_rules(db: Session) -> list[Rule]:
+    """加载所有启用的规则(调用方缓存,避免 N+1)。"""
+    return db.query(Rule).filter(Rule.enabled == True).all()  # noqa: E712
+
+
+def evaluate_device(db: Session, device: Device, rules: list[Rule]) -> list[Alert]:
+    """对单个设备运行给定规则列表,返回触发的告警(已落库)。"""
     ctx = {
         "mac": device.mac,
         "ip": device.ip,
@@ -42,7 +46,7 @@ def evaluate_device(db: Session, device: Device) -> list[Alert]:
         "status": device.status,
     }
     triggered: list[Alert] = []
-    for rule in db.query(Rule).filter(Rule.enabled == True).all():  # noqa: E712
+    for rule in rules:
         cond = json.loads(rule.condition_json)
         if _eval_condition(cond, ctx):
             a = Alert(device_id=device.id, rule_id=rule.id, level=rule.level,
@@ -52,14 +56,7 @@ def evaluate_device(db: Session, device: Device) -> list[Alert]:
             device.risk_level = max(device.risk_level, rule.level)
     db.commit()
 
-    # 广播告警事件
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            for a in triggered:
-                loop.create_task(manager.broadcast(alert_created(a)))
-    except Exception:
-        pass
+    for a in triggered:
+        manager.broadcast_sync(alert_created(a))
 
     return triggered

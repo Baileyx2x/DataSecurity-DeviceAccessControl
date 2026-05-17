@@ -39,6 +39,10 @@ from .audit import write_audit
 
 
 _active: Dict[int, threading.Event] = {}
+
+
+def get_active_ids() -> list[int]:
+    return list(_active.keys())
 _gw_cache: Optional[Tuple[str, str, str, str]] = None  # (gw_ip, iface, my_mac, gw_mac)
 
 
@@ -474,13 +478,7 @@ def block_device(
     write_audit(db, actor=actor, action="block",
                 target_device_id=device.id, reason=reason)
 
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(manager.broadcast(ws_blocked(device, reason)))
-    except Exception:
-        pass
+    manager.broadcast_sync(ws_blocked(device, reason))
 
 
 def unblock_device(
@@ -527,10 +525,4 @@ def unblock_device(
     write_audit(db, actor=actor, action="unblock",
                 target_device_id=device.id, reason=reason)
 
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(manager.broadcast(ws_unblocked(device, reason)))
-    except Exception:
-        pass
+    manager.broadcast_sync(ws_unblocked(device, reason))

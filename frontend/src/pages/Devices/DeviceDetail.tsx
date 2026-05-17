@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Drawer, Descriptions, Tabs, Table, Tag, Spin } from "antd";
 import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, Device } from "../../api/devices";
-
-const LEVEL_COLORS = ["blue", "gold", "orange", "red"];
-const LEVEL_NAMES = ["低", "中", "高", "严重"];
+import { RISK_COLORS, RISK_NAMES, CATEGORY_COLOR, STATUS_COLOR } from "../../constants";
 
 interface Props {
   deviceId: number;
@@ -42,13 +40,13 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       <Descriptions.Item label="主机名">{dev.hostname || "-"}</Descriptions.Item>
       <Descriptions.Item label="OS 推测">{dev.os_guess || "-"}</Descriptions.Item>
       <Descriptions.Item label="分类">
-        <Tag color={dev.category === "white" ? "green" : dev.category === "black" ? "red" : "default"}>{dev.category}</Tag>
+        <Tag color={CATEGORY_COLOR[dev.category] ?? "default"}>{dev.category}</Tag>
       </Descriptions.Item>
       <Descriptions.Item label="状态">
-        <Tag color={dev.status === "online" ? "green" : dev.status === "blocked" ? "red" : "default"}>{dev.status}</Tag>
+        <Tag color={STATUS_COLOR[dev.status] ?? "default"}>{dev.status}</Tag>
       </Descriptions.Item>
       <Descriptions.Item label="风险等级">
-        <Tag color={LEVEL_COLORS[dev.risk_level]}>{LEVEL_NAMES[dev.risk_level]}</Tag>
+        <Tag color={RISK_COLORS[dev.risk_level]}>{RISK_NAMES[dev.risk_level]}</Tag>
       </Descriptions.Item>
       <Descriptions.Item label="首次发现">{dev.first_seen ?? "-"}</Descriptions.Item>
       <Descriptions.Item label="最近在线">{dev.last_seen ?? "-"}</Descriptions.Item>
@@ -68,7 +66,7 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
   const alertsTable = (
     <Table rowKey="id" size="small" dataSource={alerts} columns={[
       { title: "时间", dataIndex: "created_at", width: 180 },
-      { title: "等级", dataIndex: "level", render: (l: number) => <Tag color={LEVEL_COLORS[l]}>{LEVEL_NAMES[l]}</Tag>, width: 70 },
+      { title: "等级", dataIndex: "level", render: (l: number) => <Tag color={RISK_COLORS[l]}>{RISK_NAMES[l]}</Tag>, width: 70 },
       { title: "信息", dataIndex: "message" },
       { title: "状态", dataIndex: "status", width: 80 },
     ]} pagination={{ pageSize: 10 }} />

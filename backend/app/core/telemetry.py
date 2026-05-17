@@ -1,5 +1,6 @@
 """状态采集 — 维护设备在线/离线状态,写入 access_log,广播 WebSocket 事件,流量采样。"""
 
+import ipaddress
 import json
 from collections import Counter
 from datetime import datetime, timedelta
@@ -22,13 +23,7 @@ def mark_online(db: Session, device_id: int, ip: str) -> None:
 
     dev = db.get(Device, device_id)
     if dev:
-        import asyncio
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(manager.broadcast(device_online(dev)))
-        except Exception:
-            pass
+        manager.broadcast_sync(device_online(dev))
 
 
 def reap_offline(db: Session) -> int:
@@ -40,14 +35,8 @@ def reap_offline(db: Session) -> int:
         gone.append(dev)
     db.commit()
 
-    import asyncio
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            for dev in gone:
-                loop.create_task(manager.broadcast(device_offline(dev)))
-    except Exception:
-        pass
+    for dev in gone:
+        manager.broadcast_sync(device_offline(dev))
 
     return len(gone)
 
@@ -59,6 +48,9 @@ def sample_traffic(db: Session, cidr: str, iface: str, duration: int = 5):
     """
     from scapy.all import IP, sniff
 
+    # 预计算网段前缀,避免每包重复解析
+    net = ipaddress.IPv4Network(cidr, strict=False) if cidr else None
+
     stats: dict[str, dict] = {}  # ip → {pkt_in, pkt_out, bytes_in, bytes_out, ports}
 
     def _count(pkt):
@@ -69,33 +61,30 @@ def sample_traffic(db: Session, cidr: str, iface: str, duration: int = 5):
         dst = ip.dst
         length = len(pkt)
 
-        # 入站: 目标是我们网段
-        if cidr and dst.startswith(cidr.split("/")[0].rsplit(".", 1)[0]):
-            entry = stats.setdefault(src, {"pkt_in": 0, "pkt_out": 0, "bytes_in": 0, "bytes_out": 0, "ports": []})
+        inbound = net is not None and ipaddress.IPv4Address(dst) in net
+        entry = stats.setdefault(src, {"pkt_in": 0, "pkt_out": 0, "bytes_in": 0, "bytes_out": 0, "ports": []})
+        if inbound:
             entry["pkt_in"] += 1
             entry["bytes_in"] += length
-            if hasattr(ip, "sport") or hasattr(ip, "dport"):
-                try:
-                    if hasattr(pkt, "sport"):
-                        entry["ports"].append(pkt.sport)
-                except Exception:
-                    pass
         else:
-            entry = stats.setdefault(src, {"pkt_in": 0, "pkt_out": 0, "bytes_in": 0, "bytes_out": 0, "ports": []})
             entry["pkt_out"] += 1
             entry["bytes_out"] += length
 
     try:
-        sniff(
-            iface=iface, timeout=duration, prn=_count,
-            store=False, filter="ip",
-        )
+        sniff(iface=iface, timeout=duration, prn=_count, store=False, filter="ip")
     except Exception as e:
         logger.warning(f"[telemetry] traffic sample error: {e}")
         return
 
+    if not stats:
+        return
+
+    # 一次 IN 查询拿到所有匹配的设备
+    ips = list(stats.keys())
+    devices = {d.ip: d for d in db.query(Device).filter(Device.ip.in_(ips)).all()}
+
     for ip, s in stats.items():
-        dev = db.query(Device).filter(Device.ip == ip).first()
+        dev = devices.get(ip)
         if not dev:
             continue
         top = json.dumps([p for p, _ in Counter(s["ports"]).most_common(5)])

@@ -35,4 +35,4 @@ def unblock(device_id: int, reason: str = "manual", db: Session = Depends(get_se
 
 @router.get("/active")
 def active():
-    return {"active_ids": list(blocker._active.keys())}
+    return {"active_ids": blocker.get_active_ids()}

@@ -33,27 +33,27 @@ export default function RealtimeBanner() {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-    ws.onmessage = (e) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        if (parsed.type) {
-          setEvents((prev) =>
-            [{ type: parsed.type, data: parsed.data, ts: Date.now() }, ...prev].slice(0, 5)
-          );
-        }
-      } catch {}
+    let closed = false;
+    const connect = () => {
+      if (closed) return;
+      const ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+      ws.onmessage = (e) => {
+        try {
+          const parsed = JSON.parse(e.data);
+          if (parsed.type) {
+            setEvents((prev) =>
+              [{ type: parsed.type, data: parsed.data, ts: Date.now() }, ...prev].slice(0, 5)
+            );
+          }
+        } catch {}
+      };
+      ws.onclose = () => {
+        if (!closed) setTimeout(connect, 5000);
+      };
     };
-    ws.onclose = () => {
-      // 3 秒后自动重连
-      setTimeout(() => {
-        if (wsRef.current?.readyState === WebSocket.CLOSED) {
-          window.location.reload();
-        }
-      }, 3000);
-    };
-    return () => ws.close();
+    connect();
+    return () => { closed = true; wsRef.current?.close(); };
   }, []);
 
   if (events.length === 0) return null;

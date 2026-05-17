@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Table, Button, Switch, Tag, Space, Modal, Form, Input, Select, InputNumber, message, Popconfirm } from "antd";
 import { listRules, createRule, updateRule, deleteRule, toggleRule, Rule } from "../../api/rules";
-
-const LEVEL_COLORS = ["blue", "gold", "orange", "red"];
-const LEVEL_NAMES = ["低", "中", "高", "严重"];
+import { RISK_COLORS, RISK_NAMES } from "../../constants";
 
 export default function Rules() {
   const [rows, setRows] = useState<Rule[]>([]);
@@ -40,7 +38,7 @@ export default function Rules() {
     { title: "动作", dataIndex: "action",
       render: (v: string) => <Tag color={v === "block" ? "red" : "blue"}>{v === "block" ? "阻断" : "告警"}</Tag> },
     { title: "等级", dataIndex: "level",
-      render: (l: number) => <Tag color={LEVEL_COLORS[l]}>{LEVEL_NAMES[l]}</Tag> },
+      render: (l: number) => <Tag color={RISK_COLORS[l]}>{RISK_NAMES[l]}</Tag> },
     { title: "启用", dataIndex: "enabled",
       render: (v: boolean, r: Rule) => <Switch checked={v} onChange={() => toggleRule(r.id).then(load)} /> },
     { title: "说明", dataIndex: "description" },

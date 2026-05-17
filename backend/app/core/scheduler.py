@@ -33,8 +33,9 @@ def _scan_job():
             telemetry.sample_traffic(db, cidr, iface, duration=5)
         except Exception:
             pass
+        rules = risk_engine.load_enabled_rules(db)
         for dev in db.query(Device).filter(Device.status == "online").all():
-            alerts = risk_engine.evaluate_device(db, dev)
+            alerts = risk_engine.evaluate_device(db, dev, rules)
             # 规则 action=block → 自动阻断
             for a in alerts:
                 if a.rule and a.rule.action == "block" and dev.status != "blocked":

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Table, Tag, Button, Space, message } from "antd";
 import { listDevices, setWhitelist, setBlacklist, blockDevice, unblockDevice, Device } from "../../api/devices";
 import DeviceDetail from "./DeviceDetail";
+import { CATEGORY_COLOR, STATUS_COLOR, RISK_COLORS, RISK_NAMES } from "../../constants";
 
 export default function DeviceList() {
   const [data, setData] = useState<Device[]>([]);
@@ -15,11 +16,11 @@ export default function DeviceList() {
     { title: "厂商",     dataIndex: "vendor" },
     { title: "主机名",   dataIndex: "hostname", render: (v: string) => v || "-" },
     { title: "分类",     dataIndex: "category",
-      render: (v: string) => <Tag color={v==="white"?"green":v==="black"?"red":"default"}>{v}</Tag>},
+      render: (v: string) => <Tag color={CATEGORY_COLOR[v] ?? "default"}>{v}</Tag>},
     { title: "状态",     dataIndex: "status",
-      render: (v: string) => <Tag color={v==="online"?"green":v==="blocked"?"red":"default"}>{v}</Tag>},
+      render: (v: string) => <Tag color={STATUS_COLOR[v] ?? "default"}>{v}</Tag>},
     { title: "风险",     dataIndex: "risk_level",
-      render: (l: number) => <Tag color={["blue","gold","orange","red"][l]}>{["低","中","高","严重"][l]}</Tag>},
+      render: (l: number) => <Tag color={RISK_COLORS[l]}>{RISK_NAMES[l]}</Tag>},
     { title: "操作",
       render: (_: any, r: Device) => (
         <Space>

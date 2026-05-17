@@ -17,11 +17,7 @@ def list_devices(category: str | None = None, status: str | None = None,
     q = db.query(Device)
     if category: q = q.filter(Device.category == category)
     if status:   q = q.filter(Device.status == status)
-    return sorted(
-        [d.__dict__ for d in q.all()],
-        key=lambda x: x.get("last_seen") or "",
-        reverse=True,
-    )
+    return [d.__dict__ for d in q.order_by(Device.last_seen.desc()).all()]
 
 
 @router.get("/{device_id}")

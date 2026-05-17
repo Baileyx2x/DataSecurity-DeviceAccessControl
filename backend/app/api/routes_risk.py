@@ -16,11 +16,7 @@ def list_alerts(status: str | None = None, device_id: int | None = None,
     q = db.query(Alert)
     if status:    q = q.filter(Alert.status == status)
     if device_id: q = q.filter(Alert.device_id == device_id)
-    return sorted(
-        [a.__dict__ for a in q.all()],
-        key=lambda x: x.get("created_at") or "",
-        reverse=True,
-    )
+    return [a.__dict__ for a in q.order_by(Alert.created_at.desc()).all()]
 
 
 @router.post("/alerts/{alert_id}/ack")
@@ -45,10 +41,7 @@ def close_alert(alert_id: int, db: Session = Depends(get_session)):
 
 @router.get("/rules")
 def list_rules(db: Session = Depends(get_session)):
-    return sorted(
-        [r.__dict__ for r in db.query(Rule).all()],
-        key=lambda x: x.get("name") or "",
-    )
+    return [r.__dict__ for r in db.query(Rule).order_by(Rule.name).all()]
 
 
 @router.post("/rules")
