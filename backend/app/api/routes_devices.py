@@ -75,6 +75,11 @@ def set_schedule(device_id: int, data: dict, db: Session = Depends(get_session))
     dev.block_schedule_start = start or None
     dev.block_schedule_end = end or None
     db.commit()
+    # 清除时段时,若设备正被时段阻断,则自动放行
+    if not dev.block_schedule_start and not dev.block_schedule_end:
+        if dev.status == "blocked" and dev.blocked_by == "schedule":
+            from ..core import blocker as _blocker
+            _blocker.unblock_device(db, dev, actor="system", reason="schedule cleared")
     return {"ok": True, "block_schedule_start": dev.block_schedule_start,
             "block_schedule_end": dev.block_schedule_end}
 
