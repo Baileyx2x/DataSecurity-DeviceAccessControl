@@ -33,7 +33,7 @@ def _auto_classify(vendor: str | None) -> str | None:
 def upsert_device(db: Session, mac: str, ip: str, **extra) -> Device:
     """根据 MAC 查找设备,存在则更新 last_seen,不存在则新建为 unknown。"""
     dev = db.query(Device).filter(Device.mac == mac).first()
-    now = datetime.utcnow()
+    now = datetime.now()
     if dev is None:
         vendor = extra.get("vendor")
         auto_cat = _auto_classify(vendor)

@@ -12,6 +12,11 @@ export const CATEGORY_NAME: Record<string, string> = {
   unknown: "未知",
 };
 
+export function formatTime(iso: string | null | undefined): string {
+  if (!iso) return "-";
+  return iso.slice(0, 19).replace("T", " ");
+}
+
 export const STATUS_COLOR: Record<string, string> = {
   online: "green",
   offline: "default",

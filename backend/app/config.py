@@ -16,8 +16,15 @@ class Settings(BaseSettings):
     lan_cidr: str = ""                # 空 = 由网卡推断
     scan_interval_sec: int = 30
 
-    blocker_backend: str = "route"     # deauth / arp / route / netsh(Windows) / iptables(Linux) / none
+    blocker_backend: str = "ssh_iptables"     # deauth / arp / route / netsh(Windows) / iptables(Linux) / ssh_iptables / none
     blocker_require_confirm: bool = True
+
+    # SSH 远程阻断 (ssh_iptables 后端专用)
+    ssh_host: str = "192.168.136.128"                 # Linux 虚拟机 IP
+    ssh_port: int = 22
+    ssh_user: str = "eddie"
+    ssh_password: str = ""             # 密码或留空用 key
+    ssh_key_path: str = ""             # 私钥路径,留空则用默认 ~/.ssh/id_rsa
 
     api_host: str = "0.0.0.0"
     api_port: int = 8000

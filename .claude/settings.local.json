@@ -2,7 +2,21 @@
   "permissions": {
     "allow": [
       "Bash(Get-ChildItem -Directory -Depth 2)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/models/traffic.py'\\).read\\(\\)\\); print\\('traffic.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/core/telemetry.py'\\).read\\(\\)\\); print\\('telemetry.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/core/risk_engine.py'\\).read\\(\\)\\); print\\('risk_engine.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('app/models/base.py'\\).read\\(\\)\\); print\\('base.py OK'\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('scripts/seed_rules.py'\\).read\\(\\)\\); print\\('seed_rules.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('backend/app/models/traffic.py'\\).read\\(\\)\\); print\\('traffic.py OK'\\)\"; python -c \"import ast; ast.parse\\(open\\('backend/app/core/telemetry.py'\\).read\\(\\)\\); print\\('telemetry.py OK'\\)\"; python -c \"import ast; ast.parse\\(open\\('backend/app/core/risk_engine.py'\\).read\\(\\)\\); print\\('risk_engine.py OK'\\)\"; python -c \"import ast; ast.parse\\(open\\('backend/app/models/base.py'\\).read\\(\\)\\); print\\('base.py OK'\\)\"; python -c \"import ast; ast.parse\\(open\\('backend/scripts/seed_rules.py'\\).read\\(\\)\\); print\\('seed_rules.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('backend/app/models/traffic.py', encoding='utf-8'\\).read\\(\\)\\); print\\('traffic.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('backend/app/core/telemetry.py', encoding='utf-8'\\).read\\(\\)\\); print\\('telemetry.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('backend/app/core/risk_engine.py', encoding='utf-8'\\).read\\(\\)\\); print\\('risk_engine.py OK'\\)\")",
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('backend/app/models/base.py', encoding='utf-8'\\).read\\(\\)\\); print\\('base.py OK'\\)\")",
+      "PowerShell(backend\\\\.venv\\\\Scripts\\\\python.exe -c \"import sys; sys.path.insert\\(0, 'backend'\\); from app.models.base import init_db; from app.core.risk_engine import evaluate_device, load_enabled_rules; print\\('All imports OK'\\)\")",
+      "PowerShell(& \"D:\\\\CodePy\\\\DataSecurity-device-access-control\\\\backend\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import ast; ast.parse\\(open\\(r'D:\\\\CodePy\\\\DataSecurity-device-access-control\\\\backend\\\\app\\\\models\\\\base.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c \"import paramiko; print\\(paramiko.__version__\\)\")",
+      "PowerShell(& \"D:\\\\CodePy\\\\DataSecurity-device-access-control\\\\backend\\\\.venv\\\\Scripts\\\\python.exe\" -c \"import paramiko; print\\(paramiko.__version__\\)\")"
     ]
   }
 }

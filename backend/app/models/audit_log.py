@@ -15,4 +15,4 @@ class AuditLog(Base):
     action:           Mapped[str]      = mapped_column(String(32), index=True)
     target_device_id: Mapped[int | None] = mapped_column(ForeignKey("device.id"), nullable=True)
     reason:           Mapped[str | None] = mapped_column(Text, nullable=True)
-    timestamp:        Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    timestamp:        Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)

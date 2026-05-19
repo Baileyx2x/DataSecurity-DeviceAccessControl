@@ -16,7 +16,7 @@ router = APIRouter()
 @router.get("/timeline")
 def timeline(db: Session = Depends(get_session)):
     """返回最近 24h 每小时设备上线/告警/阻断数,供趋势图使用。"""
-    now = datetime.utcnow()
+    now = datetime.now()
     hours = []
     alerts_by_hour: dict[int, int] = {}
     devices_by_hour: dict[int, int] = {}

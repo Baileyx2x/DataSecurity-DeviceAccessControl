@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Drawer, Descriptions, Tabs, Table, Tag, Spin } from "antd";
 import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, Device } from "../../api/devices";
-import { RISK_COLORS, RISK_NAMES, CATEGORY_COLOR, STATUS_COLOR } from "../../constants";
+import { RISK_COLORS, RISK_NAMES, CATEGORY_COLOR, STATUS_COLOR, formatTime } from "../../constants";
 
 interface Props {
   deviceId: number;
@@ -48,8 +48,8 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       <Descriptions.Item label="风险等级">
         <Tag color={RISK_COLORS[dev.risk_level]}>{RISK_NAMES[dev.risk_level]}</Tag>
       </Descriptions.Item>
-      <Descriptions.Item label="首次发现">{dev.first_seen ?? "-"}</Descriptions.Item>
-      <Descriptions.Item label="最近在线">{dev.last_seen ?? "-"}</Descriptions.Item>
+      <Descriptions.Item label="首次发现">{formatTime(dev.first_seen)}</Descriptions.Item>
+      <Descriptions.Item label="最近在线">{formatTime(dev.last_seen)}</Descriptions.Item>
       <Descriptions.Item label="告警数">{dev.alert_count ?? 0}</Descriptions.Item>
       <Descriptions.Item label="接入记录">{dev.access_count ?? 0}</Descriptions.Item>
     </Descriptions>
@@ -57,7 +57,7 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
 
   const historyTable = (
     <Table rowKey="id" size="small" dataSource={history} columns={[
-      { title: "时间", dataIndex: "timestamp", width: 180 },
+      { title: "时间", dataIndex: "timestamp", width: 180, render: (v: string) => formatTime(v) },
       { title: "事件", dataIndex: "event_type" },
       { title: "IP", dataIndex: "ip" },
     ]} pagination={{ pageSize: 10 }} />
@@ -65,7 +65,7 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
 
   const alertsTable = (
     <Table rowKey="id" size="small" dataSource={alerts} columns={[
-      { title: "时间", dataIndex: "created_at", width: 180 },
+      { title: "时间", dataIndex: "created_at", width: 180, render: (v: string) => formatTime(v) },
       { title: "等级", dataIndex: "level", render: (l: number) => <Tag color={RISK_COLORS[l]}>{RISK_NAMES[l]}</Tag>, width: 70 },
       { title: "信息", dataIndex: "message" },
       { title: "状态", dataIndex: "status", width: 80 },
@@ -74,7 +74,7 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
 
   const auditTable = (
     <Table rowKey="id" size="small" dataSource={audit} columns={[
-      { title: "时间", dataIndex: "timestamp", width: 180 },
+      { title: "时间", dataIndex: "timestamp", width: 180, render: (v: string) => formatTime(v) },
       { title: "操作者", dataIndex: "actor", width: 80 },
       { title: "动作", dataIndex: "action" },
       { title: "原因", dataIndex: "reason" },

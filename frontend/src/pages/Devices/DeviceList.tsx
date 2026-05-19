@@ -28,9 +28,9 @@ export default function DeviceList() {
           <Button size="small" onClick={() => setWhitelist(r.id).then(load)}>白名单</Button>
           <Button size="small" danger onClick={() => setBlacklist(r.id).then(load)}>黑名单</Button>
           {r.status !== "blocked" ? (
-            <Button size="small" onClick={() => blockDevice(r.id).then(() => { message.success("已阻断"); load(); })}>阻断</Button>
+            <Button size="small" onClick={() => blockDevice(r.id).then(() => { message.success("已阻断"); load(); }).catch((e) => message.error("阻断失败: " + (e?.response?.data?.detail ?? e.message)))}>阻断</Button>
           ) : (
-            <Button size="small" type="primary" onClick={() => unblockDevice(r.id).then(() => { message.success("已放行"); load(); })}>取消阻断</Button>
+            <Button size="small" type="primary" onClick={() => unblockDevice(r.id).then(() => { message.success("已放行"); load(); }).catch((e) => message.error("放行失败: " + (e?.response?.data?.detail ?? e.message)))}>取消阻断</Button>
           )}
         </Space>
       ),

@@ -363,6 +363,44 @@ def _netsh_unblock(ip: str) -> None:
 
 
 # ===================================================================
+#  ssh_iptables — 通过 SSH 远程调用 Linux 虚拟机 iptables
+# ===================================================================
+
+def _ssh_iptables_block(mac: str) -> None:
+    """SSH 到 Linux VM 执行 iptables FORWARD DROP(按 MAC 阻断转发流量)。"""
+    _ssh_iptables_run("iptables", "-I", "FORWARD", "-m", "mac",
+                      "--mac-source", mac, "-j", "DROP")
+
+
+def _ssh_iptables_unblock(mac: str) -> None:
+    """SSH 到 Linux VM 删除对应 iptables 规则。"""
+    _ssh_iptables_run("iptables", "-D", "FORWARD", "-m", "mac",
+                      "--mac-source", mac, "-j", "DROP")
+
+
+def _ssh_iptables_run(*args: str) -> None:
+    """通过 SSH 在远程 Linux 上执行 sudo 命令。"""
+    ssh_cmd = [
+        "ssh",
+        "-o", "BatchMode=yes",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=5",
+        "-p", str(settings.ssh_port),
+    ]
+    if settings.ssh_key_path:
+        ssh_cmd += ["-i", settings.ssh_key_path]
+    ssh_cmd.append(f"{settings.ssh_user}@{settings.ssh_host}")
+    ssh_cmd.append("sudo")
+    ssh_cmd.extend(args)
+    logger.info(f"[blocker] ssh_iptables: running {' '.join(args)} on {settings.ssh_host}")
+    result = subprocess.run(ssh_cmd, capture_output=True, text=True, timeout=15)
+    if result.returncode != 0:
+        err = result.stderr.strip() or result.stdout.strip()
+        logger.error(f"[blocker] ssh_iptables failed (rc={result.returncode}): {err}")
+        raise RuntimeError(f"SSH 执行失败: {err}")
+
+
+# ===================================================================
 #  对外接口
 # ===================================================================
 
@@ -458,18 +496,37 @@ def block_device(
 
     # --- route: 本机路由表 ---
     elif backend == "route":
-        _route_block(device.ip)
-        _active[device.id] = threading.Event()
+        try:
+            _route_block(device.ip)
+            _active[device.id] = threading.Event()
+        except Exception as e:
+            logger.error(f"[blocker] route block failed for {device.ip}: {e}")
 
     # --- iptables: Linux FORWARD ---
     elif backend == "iptables":
-        _iptables_block(device.mac)
-        _active[device.id] = threading.Event()
+        try:
+            _iptables_block(device.mac)
+            _active[device.id] = threading.Event()
+        except Exception as e:
+            logger.error(f"[blocker] iptables block failed for {device.ip}: {e}")
 
     # --- netsh: Windows 防火墙(仅本机) ---
     elif backend == "netsh":
-        _netsh_block(device.ip)
-        _active[device.id] = threading.Event()
+        try:
+            _netsh_block(device.ip)
+            _active[device.id] = threading.Event()
+        except Exception as e:
+            logger.error(f"[blocker] netsh block failed for {device.ip}: {e}")
+
+    # --- ssh_iptables: SSH 远程调用 Linux VM iptables ---
+    elif backend == "ssh_iptables":
+        try:
+            if not settings.ssh_host:
+                raise RuntimeError("ssh_host 未配置,请在设置页面填写 Linux 虚拟机 IP")
+            _ssh_iptables_block(device.mac)
+            _active[device.id] = threading.Event()
+        except Exception as e:
+            logger.error(f"[blocker] ssh_iptables block failed for {device.ip}: {e}")
 
     device.status = "blocked"
     if blocked_until is not None:
@@ -511,13 +568,28 @@ def unblock_device(
             logger.error(f"[blocker] ARP restore failed for {device.ip}: {e}")
 
     elif backend == "route":
-        _route_unblock(device.ip)
+        try:
+            _route_unblock(device.ip)
+        except Exception as e:
+            logger.error(f"[blocker] route unblock failed for {device.ip}: {e}")
 
     elif backend == "iptables":
-        _iptables_unblock(device.mac)
+        try:
+            _iptables_unblock(device.mac)
+        except Exception as e:
+            logger.error(f"[blocker] iptables unblock failed for {device.ip}: {e}")
 
     elif backend == "netsh":
-        _netsh_unblock(device.ip)
+        try:
+            _netsh_unblock(device.ip)
+        except Exception as e:
+            logger.error(f"[blocker] netsh unblock failed for {device.ip}: {e}")
+
+    elif backend == "ssh_iptables":
+        try:
+            _ssh_iptables_unblock(device.mac)
+        except Exception as e:
+            logger.error(f"[blocker] ssh_iptables unblock failed for {device.ip}: {e}")
 
     device.status = "offline"
     device.blocked_until = None

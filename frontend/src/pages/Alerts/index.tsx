@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Table, Tag, Button } from "antd";
 import { listAlerts, ackAlert } from "../../api/alerts";
+import { formatTime } from "../../constants";
 
 export default function Alerts() {
   const [rows, setRows] = useState<any[]>([]);
   const load = () => listAlerts().then(r => setRows(r.data));
   useEffect(() => { load(); }, []);
   const cols = [
-    { title: "时间", dataIndex: "created_at" },
+    { title: "时间", dataIndex: "created_at", render: (v: string) => formatTime(v) },
     { title: "设备", dataIndex: "device_id" },
     { title: "等级", dataIndex: "level",
       render: (l: number) => <Tag color={["blue","gold","orange","red"][l]}>{["低","中","高","严重"][l]}</Tag>},

@@ -16,5 +16,7 @@ class DeviceTraffic(Base):
     pkt_out:     Mapped[int] = mapped_column(BigInteger, default=0)
     bytes_in:    Mapped[int] = mapped_column(BigInteger, default=0)
     bytes_out:   Mapped[int] = mapped_column(BigInteger, default=0)
-    top_ports:   Mapped[str | None] = mapped_column(String(512), nullable=True)  # JSON [80,443,53,...]
-    sample_at:   Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    top_ports:       Mapped[str | None] = mapped_column(String(512), nullable=True)  # JSON [80,443,53,...]
+    unique_dst_ips:   Mapped[int] = mapped_column(Integer, default=0)   # 采样期间不同目的 IP 数
+    unique_dst_ports: Mapped[int] = mapped_column(Integer, default=0)   # 采样期间不同目的端口数
+    sample_at:       Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)

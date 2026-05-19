@@ -16,7 +16,7 @@ def block(device_id: int, reason: str = "manual", gateway_ip: str = "",
     if not dev: raise HTTPException(404)
     blocked_until = None
     if duration_min > 0:
-        blocked_until = datetime.utcnow() + timedelta(minutes=duration_min)
+        blocked_until = datetime.now() + timedelta(minutes=duration_min)
     blocker.block_device(db, dev, gateway_ip=gateway_ip, actor="user",
                          reason=reason, blocked_until=blocked_until)
     extra = {}

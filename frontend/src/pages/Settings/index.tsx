@@ -3,11 +3,12 @@ import { Card, Form, Input, Select, Button, InputNumber, message, Switch } from 
 import { getSettings, updateSettings } from "../../api/settings";
 
 const BACKENDS = [
-  { value: "netsh", label: "netsh (Windows 防火墙,PC 做网关时推荐)" },
+  { value: "ssh_iptables", label: "ssh_iptables (SSH 远程 Linux iptables,推荐)" },
+  { value: "netsh", label: "netsh (Windows 防火墙,PC 做网关)" },
   { value: "route", label: "route (本机路由黑洞)" },
   { value: "arp", label: "arp (ARP 欺骗,Android/Windows 设备有效)" },
   { value: "deauth", label: "deauth (WiFi 踢下线,需网卡支持)" },
-  { value: "iptables", label: "iptables (仅 Linux)" },
+  { value: "iptables", label: "iptables (仅本机 Linux)" },
   { value: "none", label: "none (仅监控不阻断)" },
 ];
 
@@ -28,6 +29,10 @@ export default function Settings() {
       LAN_CIDR: values.lan_cidr || "",
       SCAN_INTERVAL_SEC: String(values.scan_interval_sec),
       LOG_LEVEL: values.log_level,
+      SSH_HOST: values.ssh_host || "",
+      SSH_PORT: String(values.ssh_port || 22),
+      SSH_USER: values.ssh_user || "root",
+      SSH_KEY_PATH: values.ssh_key_path || "",
     };
     updateSettings(payload)
       .then(() => message.success("配置已保存,部分修改需重启后端生效"))
@@ -56,6 +61,20 @@ export default function Settings() {
         <Form.Item name="log_level" label="日志级别">
           <Select options={["DEBUG","INFO","WARNING","ERROR"].map(v => ({ value: v, label: v }))} />
         </Form.Item>
+        <Card type="inner" title="SSH 远程阻断 (ssh_iptables 后端)" size="small" style={{ marginBottom: 16 }}>
+          <Form.Item name="ssh_host" label="Linux 虚拟机 IP / 主机名">
+            <Input placeholder="192.168.137.100" />
+          </Form.Item>
+          <Form.Item name="ssh_port" label="SSH 端口">
+            <InputNumber min={1} max={65535} />
+          </Form.Item>
+          <Form.Item name="ssh_user" label="SSH 用户">
+            <Input placeholder="root" />
+          </Form.Item>
+          <Form.Item name="ssh_key_path" label="SSH 私钥路径 (Windows)">
+            <Input placeholder="C:\Users\Eddie\.ssh\id_rsa" />
+          </Form.Item>
+        </Card>
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={loading}>保存配置</Button>
         </Form.Item>

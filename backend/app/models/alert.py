@@ -16,6 +16,6 @@ class Alert(Base):
     level:      Mapped[int]      = mapped_column(Integer, default=0)            # 0~3
     message:    Mapped[str]      = mapped_column(Text)
     status:     Mapped[str]      = mapped_column(String(16), default="open")    # open/ack/closed
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)
 
     rule = relationship("Rule", lazy="joined")

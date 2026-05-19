@@ -20,6 +20,30 @@ DEFAULTS = [
         "condition_json": json.dumps({"field": "category", "op": "==", "value": "black"}),
         "action": "block", "level": 3,
     },
+    {
+        "name": "陌生设备首次接入",
+        "description": "不在白名单也不在黑名单的设备第一次出现在网络中",
+        "condition_json": json.dumps({"all": [
+            {"field": "category", "op": "==", "value": "unknown"},
+            {"field": "is_new",   "op": "==", "value": True},
+        ]}),
+        "action": "alert", "level": 2,
+    },
+    {
+        "name": "设备频繁上下线",
+        "description": "1 分钟内断开/重连超过 3 次(6 次状态变更),可能存在攻击或网络不稳定",
+        "condition_json": json.dumps({"field": "flip_count_1min", "op": ">=", "value": 6}),
+        "action": "alert", "level": 2,
+    },
+    {
+        "name": "设备端口扫描行为",
+        "description": "短时间内访问大量不同 IP 或端口,典型的扫描/探测行为",
+        "condition_json": json.dumps({"any": [
+            {"field": "unique_ports_5min", "op": ">=", "value": 30},
+            {"field": "unique_ips_5min",   "op": ">=", "value": 15},
+        ]}),
+        "action": "block", "level": 3,
+    },
 ]
 
 init_db()

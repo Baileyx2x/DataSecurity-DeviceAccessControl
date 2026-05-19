@@ -14,4 +14,4 @@ class AccessLog(Base):
     device_id:  Mapped[int]      = mapped_column(ForeignKey("device.id"), index=True)
     event_type: Mapped[str]      = mapped_column(String(16))            # online / offline / ip_change
     ip:         Mapped[str]      = mapped_column(String(45))
-    timestamp:  Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    timestamp:  Mapped[datetime] = mapped_column(DateTime, default=datetime.now, index=True)

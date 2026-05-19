@@ -62,11 +62,14 @@ def start_scheduler():
     _scheduler.start()
     logger.info(f"[scheduler] started (interval={settings.scan_interval_sec}s)")
 
+    # 被动 ARP 监听:设备一连网即发现,不受扫描间隔限制
+    telemetry.start_passive_arp(iface=settings.lan_interface or discovery.detect_interface())
+
 
 def _expire_blocks(db: Session) -> int:
     """检查 blocked_until 过期的设备并自动解除阻断。"""
     from datetime import datetime
-    now = datetime.utcnow()
+    now = datetime.now()
     expired = db.query(Device).filter(
         Device.status == "blocked",
         Device.blocked_until.isnot(None),
@@ -81,5 +84,6 @@ def _expire_blocks(db: Session) -> int:
 
 
 def shutdown_scheduler():
+    telemetry.stop_passive_arp()
     if _scheduler:
         _scheduler.shutdown(wait=False)
