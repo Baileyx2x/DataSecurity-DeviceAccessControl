@@ -25,4 +25,6 @@ class Device(Base):
     block_schedule_start: Mapped[str | None] = mapped_column(String(5), nullable=True)  # "HH:MM" 上网时段起始
     block_schedule_end:   Mapped[str | None] = mapped_column(String(5), nullable=True)  # "HH:MM" 上网时段结束
     blocked_by:           Mapped[str | None] = mapped_column(String(16), nullable=True)  # manual / schedule / auto
+    qos_down_kbps:        Mapped[int | None] = mapped_column(Integer, nullable=True)     # 下载限速 (kbps)
+    qos_up_kbps:          Mapped[int | None] = mapped_column(Integer, nullable=True)     # 上传限速 (kbps)
     note:       Mapped[str | None] = mapped_column(Text, nullable=True)

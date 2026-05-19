@@ -37,6 +37,8 @@ def _sqlite_migrate(eng, logger) -> None:
             ("block_schedule_start", "VARCHAR(5)"),
             ("block_schedule_end",   "VARCHAR(5)"),
             ("blocked_by",           "VARCHAR(16)"),
+            ("qos_down_kbps",       "INTEGER"),
+            ("qos_up_kbps",         "INTEGER"),
         ],
         "device_traffic": [
             ("unique_dst_ips",   "INTEGER DEFAULT 0"),

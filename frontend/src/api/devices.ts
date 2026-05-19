@@ -19,6 +19,8 @@ export interface Device {
   block_schedule_start?: string;
   block_schedule_end?: string;
   blocked_by?: string;
+  qos_down_kbps?: number;
+  qos_up_kbps?: number;
 }
 
 export const listDevices    = (params?: Record<string, string>) => api.get<Device[]>("/devices", { params });
@@ -33,3 +35,6 @@ export const setSchedule    = (id: number, data: { block_schedule_start: string;
 export const triggerScan    = () => api.post("/scan/trigger");
 export const blockDevice    = (id: number, reason="manual") => api.post(`/blocker/${id}/block`, null, { params: { reason } });
 export const unblockDevice  = (id: number, reason="manual") => api.post(`/blocker/${id}/unblock`, null, { params: { reason } });
+export const limitBandwidth = (id: number, down_kbps: number, up_kbps: number) =>
+  api.post(`/qos/${id}/limit`, { down_kbps, up_kbps });
+export const unlimitBandwidth = (id: number) => api.post(`/qos/${id}/unlimit`);

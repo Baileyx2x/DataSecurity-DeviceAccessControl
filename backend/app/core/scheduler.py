@@ -7,7 +7,7 @@ from ..config import settings
 from ..models.base import SessionLocal
 from ..models.device import Device
 from ..utils.logger import logger
-from . import discovery, fingerprint, registry, telemetry, risk_engine, blocker
+from . import discovery, fingerprint, registry, telemetry, risk_engine, blocker, qos
 
 
 _scheduler: BackgroundScheduler | None = None
@@ -66,6 +66,12 @@ def start_scheduler():
 
     # 被动 ARP 监听:设备一连网即发现,不受扫描间隔限制
     telemetry.start_passive_arp(iface=settings.lan_interface or discovery.detect_interface())
+
+    # 恢复之前设置的 QoS 限速
+    try:
+        qos.restore_limits(SessionLocal(), settings.lan_interface or discovery.detect_interface())
+    except Exception:
+        pass
 
 
 def _expire_blocks(db: Session) -> int:
