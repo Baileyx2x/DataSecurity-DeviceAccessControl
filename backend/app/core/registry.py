@@ -51,7 +51,8 @@ def upsert_device(db: Session, mac: str, ip: str, **extra) -> Device:
     else:
         dev.ip = ip
         dev.last_seen = now
-        dev.status = "online"
+        if dev.status != "blocked":
+            dev.status = "online"
         for k, v in extra.items():
             if v is not None:
                 setattr(dev, k, v)

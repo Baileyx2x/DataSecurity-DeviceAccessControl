@@ -423,7 +423,12 @@ def block_device(
         + (f" until={blocked_until}" if blocked_until else "")
     )
     if device.id in _active:
-        logger.warning(f"[blocker] device {device.id} already active, skip")
+        logger.info(f"[blocker] device {device.id} already active, refresh metadata")
+        device.status = "blocked"
+        device.blocked_by = blocked_by
+        if blocked_until is not None:
+            device.blocked_until = blocked_until
+        db.commit()
         return
 
     backend = settings.blocker_backend
