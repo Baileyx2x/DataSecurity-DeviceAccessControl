@@ -89,6 +89,19 @@ def to_blacklist(device_id: int, db: Session = Depends(get_session)):
     return registry.set_category(db, device_id, "black", actor="user").__dict__
 
 
+@router.put("/{device_id}/name")
+def set_device_name(device_id: int, data: dict, db: Session = Depends(get_session)):
+    """自定义设备名称。"""
+    dev = db.get(Device, device_id)
+    if not dev:
+        raise HTTPException(404)
+    name = str(data.get("name", "") or "").strip()
+    if name:
+        dev.name = name
+        db.commit()
+    return {"ok": True, "name": dev.name}
+
+
 @router.delete("/{device_id}")
 def delete_device(device_id: int, db: Session = Depends(get_session)):
     """删除设备及其所有关联记录(告警/接入日志/审计/流量/阻断规则)。"""

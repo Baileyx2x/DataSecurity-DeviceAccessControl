@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Drawer, Descriptions, Tabs, Table, Tag, Spin, TimePicker, InputNumber, Button, message, Space, Card, Popconfirm } from "antd";
-import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, setSchedule, limitBandwidth, unlimitBandwidth, deleteDevice, Device } from "../../api/devices";
+import { Drawer, Descriptions, Tabs, Table, Tag, Spin, TimePicker, InputNumber, Input, Button, message, Space, Card, Popconfirm } from "antd";
+import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, setSchedule, limitBandwidth, unlimitBandwidth, deleteDevice, setDeviceName, Device } from "../../api/devices";
 import { RISK_COLORS, RISK_NAMES, CATEGORY_COLOR, STATUS_COLOR, formatTime } from "../../constants";
 import dayjs from "dayjs";
 
@@ -21,6 +21,8 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
   const [qosDown, setQosDown] = useState<number | null>(null);
   const [qosUp, setQosUp] = useState<number | null>(null);
   const [qosLoading, setQosLoading] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
 
   const loadDetail = () => {
     if (!deviceId) return;
@@ -39,6 +41,7 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       setSchEnd(device.block_schedule_end ? dayjs(device.block_schedule_end, "HH:mm") : null);
       setQosDown(device.qos_down_kbps ? device.qos_down_kbps / 1000 : null);
       setQosUp(device.qos_up_kbps ? device.qos_up_kbps / 1000 : null);
+      setEditName(device.name || "");
     });
   };
 
@@ -78,6 +81,15 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       .catch(() => message.error("删除失败"));
   };
 
+  const saveName = () => {
+    if (!editName.trim()) { message.warning("名称不能为空"); return; }
+    setNameSaving(true);
+    setDeviceName(deviceId, editName.trim())
+      .then(() => { message.success("名称已保存"); loadDetail(); })
+      .catch(() => message.error("保存失败"))
+      .finally(() => setNameSaving(false));
+  };
+
   if (!dev) return <Drawer open={open} onClose={onClose}><Spin /></Drawer>;
 
   const info = (
@@ -88,7 +100,13 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
           <Descriptions.Item label="IP">{dev.ip}</Descriptions.Item>
           <Descriptions.Item label="厂商">{dev.vendor || "-"}</Descriptions.Item>
           <Descriptions.Item label="主机名">{dev.hostname || "-"}</Descriptions.Item>
-          <Descriptions.Item label="OS 推测">{dev.os_guess || "-"}</Descriptions.Item>
+          <Descriptions.Item label="设备名称">
+            <Space.Compact style={{ width: "100%" }}>
+              <Input size="small" value={editName} onChange={(e) => setEditName(e.target.value)}
+                onPressEnter={saveName} placeholder="输入设备名称" />
+              <Button type="primary" size="small" loading={nameSaving} onClick={saveName}>保存</Button>
+            </Space.Compact>
+          </Descriptions.Item>
           <Descriptions.Item label="分类">
             <Tag color={CATEGORY_COLOR[dev.category] ?? "default"}>{dev.category}</Tag>
           </Descriptions.Item>

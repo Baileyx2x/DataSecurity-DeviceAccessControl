@@ -10,7 +10,7 @@ export default function Audit() {
     { title: "时间", dataIndex: "timestamp", render: (v: string) => formatTime(v) },
     { title: "操作者", dataIndex: "actor" },
     { title: "动作", dataIndex: "action" },
-    { title: "目标设备", dataIndex: "target_device_id" },
+    { title: "目标设备", dataIndex: "device_name", render: (v: string, r: any) => v || `设备#${r.target_device_id || "-"}` },
     { title: "原因", dataIndex: "reason" },
   ]} />;
 }

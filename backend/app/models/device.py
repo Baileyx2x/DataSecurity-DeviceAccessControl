@@ -15,6 +15,7 @@ class Device(Base):
     ip:         Mapped[str]      = mapped_column(String(45), index=True)        # IPv4/IPv6
     hostname:   Mapped[str | None] = mapped_column(String(255), nullable=True)
     vendor:     Mapped[str | None] = mapped_column(String(128), nullable=True)
+    name:       Mapped[str]      = mapped_column(String(128), default="Unknown")
     os_guess:   Mapped[str | None] = mapped_column(String(64),  nullable=True)
     category:   Mapped[str]      = mapped_column(String(16), default="unknown")  # white/black/unknown
     risk_level: Mapped[int]      = mapped_column(Integer, default=0)             # 0~3

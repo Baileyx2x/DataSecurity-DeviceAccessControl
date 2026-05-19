@@ -33,6 +33,7 @@ def _sqlite_migrate(eng, logger) -> None:
     import sqlalchemy as sa
     migrations = {
         "device": [
+            ("name",                "VARCHAR(128) DEFAULT 'Unknown'"),
             ("blocked_until", "DATETIME"),
             ("block_schedule_start", "VARCHAR(5)"),
             ("block_schedule_end",   "VARCHAR(5)"),

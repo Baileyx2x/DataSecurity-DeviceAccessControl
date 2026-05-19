@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..models.base import get_session
 from ..models.alert import Alert
+from ..models.device import Device
 from ..models.rule import Rule
 
 router = APIRouter()
@@ -16,7 +17,14 @@ def list_alerts(status: str | None = None, device_id: int | None = None,
     q = db.query(Alert)
     if status:    q = q.filter(Alert.status == status)
     if device_id: q = q.filter(Alert.device_id == device_id)
-    return [a.__dict__ for a in q.order_by(Alert.created_at.desc()).all()]
+    rows = q.order_by(Alert.created_at.desc()).all()
+    result = []
+    for a in rows:
+        d = a.__dict__
+        dev = db.get(Device, a.device_id)
+        d["device_name"] = dev.name if dev else None
+        result.append(d)
+    return result
 
 
 @router.post("/alerts/{alert_id}/ack")

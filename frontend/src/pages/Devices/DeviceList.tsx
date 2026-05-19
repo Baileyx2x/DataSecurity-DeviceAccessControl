@@ -11,6 +11,7 @@ export default function DeviceList() {
   useEffect(() => { load(); }, []);
 
   const columns = [
+    { title: "名称",     dataIndex: "name" },
     { title: "IP",       dataIndex: "ip" },
     { title: "MAC",      dataIndex: "mac" },
     { title: "厂商",     dataIndex: "vendor" },
