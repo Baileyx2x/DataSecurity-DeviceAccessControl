@@ -70,8 +70,12 @@ def _reverse_auto_blocks(db: Session, rules: list) -> int:
     for dev in blocked_devs:
         ctx = {
             "mac": dev.mac, "ip": dev.ip, "category": dev.category,
-            "vendor": dev.vendor, "hour": datetime.now().hour, "status": dev.status,
+            "vendor": dev.vendor, "hour": datetime.now().hour,
+            "status": "online",  # 用 online 评估,因为规则是基于在线状态触发的
             "is_new": (datetime.now() - dev.first_seen) <= timedelta(seconds=120),
+            "flip_count_1min": 0,
+            "unique_ips_5min": 0,
+            "unique_ports_5min": 0,
         }
         still_block = False
         for rule in rules:
