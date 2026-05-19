@@ -34,6 +34,9 @@ def _sqlite_migrate(eng, logger) -> None:
     migrations = {
         "device": [
             ("blocked_until", "DATETIME"),
+            ("block_schedule_start", "VARCHAR(5)"),
+            ("block_schedule_end",   "VARCHAR(5)"),
+            ("blocked_by",           "VARCHAR(16)"),
         ],
         "device_traffic": [
             ("unique_dst_ips",   "INTEGER DEFAULT 0"),

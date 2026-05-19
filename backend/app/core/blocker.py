@@ -411,6 +411,7 @@ def block_device(
     actor: str = "system",
     reason: str = "",
     blocked_until=None,  # datetime | None,定时到期自动解除
+    blocked_by: str = "manual",
 ) -> None:
     logger.info(
         f"[blocker] block_device called: device_id={device.id} "
@@ -529,6 +530,7 @@ def block_device(
             logger.error(f"[blocker] ssh_iptables block failed for {device.ip}: {e}")
 
     device.status = "blocked"
+    device.blocked_by = blocked_by
     if blocked_until is not None:
         device.blocked_until = blocked_until
     db.commit()
@@ -593,6 +595,7 @@ def unblock_device(
 
     device.status = "offline"
     device.blocked_until = None
+    device.blocked_by = None
     db.commit()
     write_audit(db, actor=actor, action="unblock",
                 target_device_id=device.id, reason=reason)

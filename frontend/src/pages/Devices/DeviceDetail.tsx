@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Drawer, Descriptions, Tabs, Table, Tag, Spin } from "antd";
-import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, Device } from "../../api/devices";
+import { Drawer, Descriptions, Tabs, Table, Tag, Spin, TimePicker, Button, message, Space } from "antd";
+import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, setSchedule, Device } from "../../api/devices";
 import { RISK_COLORS, RISK_NAMES, CATEGORY_COLOR, STATUS_COLOR, formatTime } from "../../constants";
+import dayjs from "dayjs";
 
 interface Props {
   deviceId: number;
@@ -14,8 +15,11 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
   const [history, setHistory] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
+  const [schStart, setSchStart] = useState<dayjs.Dayjs | null>(null);
+  const [schEnd, setSchEnd] = useState<dayjs.Dayjs | null>(null);
+  const [schLoading, setSchLoading] = useState(false);
 
-  useEffect(() => {
+  const loadDetail = () => {
     if (!deviceId) return;
     Promise.all([
       getDevice(deviceId),
@@ -23,12 +27,29 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       getDeviceAlerts(deviceId),
       getDeviceAudit(deviceId),
     ]).then(([d, h, a, aud]) => {
-      setDev(d.data);
+      const device = d.data as Device;
+      setDev(device);
       setHistory(h.data);
       setAlerts(a.data);
       setAudit(aud.data);
+      setSchStart(device.block_schedule_start ? dayjs(device.block_schedule_start, "HH:mm") : null);
+      setSchEnd(device.block_schedule_end ? dayjs(device.block_schedule_end, "HH:mm") : null);
     });
-  }, [deviceId, open]);
+  };
+
+  useEffect(() => { loadDetail(); }, [deviceId, open]);
+
+  const saveSchedule = () => {
+    setSchLoading(true);
+    const payload = {
+      block_schedule_start: schStart ? schStart.format("HH:mm") : "",
+      block_schedule_end: schEnd ? schEnd.format("HH:mm") : "",
+    };
+    setSchedule(deviceId, payload)
+      .then(() => { message.success("上网时段已保存"); loadDetail(); })
+      .catch(() => message.error("保存失败"))
+      .finally(() => setSchLoading(false));
+  };
 
   if (!dev) return <Drawer open={open} onClose={onClose}><Spin /></Drawer>;
 
@@ -52,6 +73,25 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       <Descriptions.Item label="最近在线">{formatTime(dev.last_seen)}</Descriptions.Item>
       <Descriptions.Item label="告警数">{dev.alert_count ?? 0}</Descriptions.Item>
       <Descriptions.Item label="接入记录">{dev.access_count ?? 0}</Descriptions.Item>
+      <Descriptions.Item label="阻断原因">{dev.blocked_by || "-"}</Descriptions.Item>
+      <Descriptions.Item label="阻断到期">{dev.blocked_until ? formatTime(dev.blocked_until) : "-"}</Descriptions.Item>
+      <Descriptions.Item label="禁止上网时段">
+        <Space>
+          <TimePicker value={schStart} onChange={setSchStart} format="HH:mm" placeholder="起始" size="small" style={{ width: 100 }} />
+          <span>—</span>
+          <TimePicker value={schEnd} onChange={setSchEnd} format="HH:mm" placeholder="结束" size="small" style={{ width: 100 }} />
+          <Button type="primary" size="small" loading={schLoading} onClick={saveSchedule}>保存</Button>
+          {(dev.block_schedule_start || dev.block_schedule_end) && (
+            <Button size="small" danger loading={schLoading} onClick={() => {
+              setSchStart(null); setSchEnd(null);
+              setSchedule(deviceId, { block_schedule_start: "", block_schedule_end: "" })
+                .then(() => { message.success("已清除上网限制"); loadDetail(); })
+                .catch(() => message.error("清除失败"))
+                .finally(() => setSchLoading(false));
+            }}>清除</Button>
+          )}
+        </Space>
+      </Descriptions.Item>
     </Descriptions>
   );
 

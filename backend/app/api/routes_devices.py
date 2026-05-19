@@ -64,6 +64,21 @@ def to_whitelist(device_id: int, db: Session = Depends(get_session)):
     return registry.set_category(db, device_id, "white", actor="user").__dict__
 
 
+@router.put("/{device_id}/schedule")
+def set_schedule(device_id: int, data: dict, db: Session = Depends(get_session)):
+    """设置设备上网时段。传空字符串清除限制。"""
+    dev = db.get(Device, device_id)
+    if not dev:
+        raise HTTPException(404)
+    start = str(data.get("block_schedule_start", "") or "").strip()
+    end = str(data.get("block_schedule_end", "") or "").strip()
+    dev.block_schedule_start = start or None
+    dev.block_schedule_end = end or None
+    db.commit()
+    return {"ok": True, "block_schedule_start": dev.block_schedule_start,
+            "block_schedule_end": dev.block_schedule_end}
+
+
 @router.post("/{device_id}/blacklist")
 def to_blacklist(device_id: int, db: Session = Depends(get_session)):
     return registry.set_category(db, device_id, "black", actor="user").__dict__

@@ -24,9 +24,10 @@ def _scan_job():
                 vendor=fp.vendor, hostname=fp.hostname, os_guess=fp.os_guess,
             )
             telemetry.mark_online(db, dev.id, dev.ip)
-        # 离线检测 + 定时阻断到期 + 流量采样 + 风险评估
+        # 离线检测 + 定时阻断到期 + 上网时段 + 流量采样 + 风险评估
         telemetry.reap_offline(db)
         _expire_blocks(db)
+        _schedule_enforce(db)
         try:
             cidr = settings.lan_cidr or discovery.detect_lan_cidr()
             iface = settings.lan_interface or discovery.detect_interface()
@@ -48,6 +49,7 @@ def _scan_job():
                         db, dev,
                         actor="system",
                         reason=f"auto: rule '{a.rule.name}' triggered",
+                        blocked_by="auto",
                     )
     except Exception as e:
         logger.exception(f"[scheduler] scan job failed: {e}")
@@ -81,6 +83,44 @@ def _expire_blocks(db: Session) -> int:
     if expired:
         db.commit()
     return len(expired)
+
+
+def _time_in_window(now_str: str, start: str, end: str) -> bool:
+    """检查 now_str(HH:MM) 是否在 [start, end] 窗口内,支持跨天(如 22:00-06:00)。"""
+    nh, nm = now_str.split(":"); nmins = int(nh) * 60 + int(nm)
+    sh, sm = start.split(":"); smins = int(sh) * 60 + int(sm)
+    eh, em = end.split(":");   emins = int(eh) * 60 + int(em)
+    if smins <= emins:
+        return smins <= nmins <= emins        # 同天: 09:00-17:00
+    else:
+        return nmins >= smins or nmins <= emins  # 跨天: 22:00-06:00
+
+
+def _schedule_enforce(db: Session) -> int:
+    """根据设备的上网时段配置自动阻断/放行。返回变更数。"""
+    from datetime import datetime
+    now_str = datetime.now().strftime("%H:%M")
+    changed = 0
+
+    devices = db.query(Device).filter(
+        Device.block_schedule_start.isnot(None),
+        Device.block_schedule_end.isnot(None),
+    ).all()
+
+    for dev in devices:
+        in_window = _time_in_window(now_str, dev.block_schedule_start, dev.block_schedule_end)
+        if in_window:
+            if dev.status == "online":
+                logger.info(f"[scheduler] schedule block: {dev.ip} now={now_str} window={dev.block_schedule_start}-{dev.block_schedule_end}")
+                blocker.block_device(db, dev, actor="system", reason="上网时段限制", blocked_by="schedule")
+                changed += 1
+        else:
+            if dev.status == "blocked" and dev.blocked_by == "schedule":
+                logger.info(f"[scheduler] schedule unblock: {dev.ip} now={now_str} window ended {dev.block_schedule_start}-{dev.block_schedule_end}")
+                blocker.unblock_device(db, dev, actor="system", reason="上网时段结束")
+                changed += 1
+
+    return changed
 
 
 def shutdown_scheduler():
