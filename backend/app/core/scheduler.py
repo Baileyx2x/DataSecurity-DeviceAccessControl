@@ -49,7 +49,7 @@ def _scan_job():
                         db, dev,
                         actor="system",
                         reason=f"auto: rule '{a.rule.name}' triggered",
-                        blocked_by="auto",
+                        blocked_by=blocker.BLOCKED_BY_AUTO,
                     )
     except Exception as e:
         logger.exception(f"[scheduler] scan job failed: {e}")
@@ -64,12 +64,10 @@ def start_scheduler():
     _scheduler.start()
     logger.info(f"[scheduler] started (interval={settings.scan_interval_sec}s)")
 
-    # 被动 ARP 监听:设备一连网即发现,不受扫描间隔限制
-    telemetry.start_passive_arp(iface=settings.lan_interface or discovery.detect_interface())
-
-    # 恢复之前设置的 QoS 限速
+    iface = settings.lan_interface or discovery.detect_interface()
+    telemetry.start_passive_arp(iface=iface)
     try:
-        qos.restore_limits(SessionLocal(), settings.lan_interface or discovery.detect_interface())
+        qos.restore_limits(SessionLocal(), iface)
     except Exception:
         pass
 
@@ -92,14 +90,15 @@ def _expire_blocks(db: Session) -> int:
 
 
 def _time_in_window(now_str: str, start: str, end: str) -> bool:
-    """检查 now_str(HH:MM) 是否在 [start, end] 窗口内,支持跨天(如 22:00-06:00)。"""
-    nh, nm = now_str.split(":"); nmins = int(nh) * 60 + int(nm)
-    sh, sm = start.split(":"); smins = int(sh) * 60 + int(sm)
-    eh, em = end.split(":");   emins = int(eh) * 60 + int(em)
+    nh, nm = now_str.split(":")
+    nmins = int(nh) * 60 + int(nm)
+    sh, sm = start.split(":")
+    smins = int(sh) * 60 + int(sm)
+    eh, em = end.split(":")
+    emins = int(eh) * 60 + int(em)
     if smins <= emins:
-        return smins <= nmins <= emins        # 同天: 09:00-17:00
-    else:
-        return nmins >= smins or nmins <= emins  # 跨天: 22:00-06:00
+        return smins <= nmins <= emins
+    return nmins >= smins or nmins <= emins
 
 
 def _schedule_enforce(db: Session) -> int:
@@ -118,10 +117,10 @@ def _schedule_enforce(db: Session) -> int:
         if in_window:
             if dev.status == "online":
                 logger.info(f"[scheduler] schedule block: {dev.ip} now={now_str} window={dev.block_schedule_start}-{dev.block_schedule_end}")
-                blocker.block_device(db, dev, actor="system", reason="上网时段限制", blocked_by="schedule")
+                blocker.block_device(db, dev, actor="system", reason="上网时段限制", blocked_by=blocker.BLOCKED_BY_SCHEDULE)
                 changed += 1
         else:
-            if dev.status == "blocked" and dev.blocked_by == "schedule":
+            if dev.status == "blocked" and dev.blocked_by == blocker.BLOCKED_BY_SCHEDULE:
                 logger.info(f"[scheduler] schedule unblock: {dev.ip} now={now_str} window ended {dev.block_schedule_start}-{dev.block_schedule_end}")
                 blocker.unblock_device(db, dev, actor="system", reason="上网时段结束")
                 changed += 1

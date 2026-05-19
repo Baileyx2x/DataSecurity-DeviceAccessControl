@@ -160,46 +160,55 @@ def _ping_ttl(ip: str) -> int | None:
 #  TCP SYN 被动指纹 (p0f 风格)
 # ===================================================================
 
-# 签名格式: (ttl_lo, ttl_hi, win_lo, win_hi, options_pattern, os_label)
-TCP_SYN_SIGS: list[tuple] = [
+from collections import namedtuple
+
+SynSig = namedtuple("SynSig", ["ttl_lo", "ttl_hi", "win_lo", "win_hi", "options", "os_label"])
+
+TCP_SYN_SIGS: list[SynSig] = [
     # ── Windows ──
-    (120, 130, 64000, 66000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows 10/11"),
-    (120, 130, 64000, 66000, "MSS,WS,NOP,NOP,SACK", "Windows 10/11 (variant)"),
-    (120, 130, 16000, 17000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows Vista/7"),
-    (120, 130,  8100,  8300, "MSS,NOP,WS,NOP,NOP,SACK", "Windows 7/8"),
-    (120, 130, 32000, 33000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows Server"),
+    SynSig(120, 130, 64000, 66000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows 10/11"),
+    SynSig(120, 130, 64000, 66000, "MSS,WS,NOP,NOP,SACK", "Windows 10/11 (variant)"),
+    SynSig(120, 130, 16000, 17000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows Vista/7"),
+    SynSig(120, 130,  8100,  8300, "MSS,NOP,WS,NOP,NOP,SACK", "Windows 7/8"),
+    SynSig(120, 130, 32000, 33000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows Server"),
     # ── Linux ──
-    ( 52,  66, 28000, 30000, "MSS,SACK,TS,WS", "Linux (modern)"),
-    ( 52,  66, 28000, 30000, "MSS,SACK,TS,WS,NOP,NOP", "Linux"),
-    ( 52,  66, 57000, 59000, "MSS,SACK,TS,WS", "Linux (ARM/IoT)"),
-    ( 52,  66, 14000, 14500, "MSS,SACK,TS,WS", "Linux (older)"),
+    SynSig( 52,  66, 28000, 30000, "MSS,SACK,TS,WS", "Linux (modern)"),
+    SynSig( 52,  66, 28000, 30000, "MSS,SACK,TS,WS,NOP,NOP", "Linux"),
+    SynSig( 52,  66, 57000, 59000, "MSS,SACK,TS,WS", "Linux (ARM/IoT)"),
+    SynSig( 52,  66, 14000, 14500, "MSS,SACK,TS,WS", "Linux (older)"),
     # ── macOS / iOS ──
-    ( 52,  66, 64000, 66000, "MSS,NOP,WS,NOP,NOP,TS,NOP,NOP,SACK", "macOS/iOS"),
-    ( 52,  66, 64000, 66000, "MSS,SACK,TS,WS", "macOS/iOS (newer)"),
-    ( 52,  66, 64000, 66000, "MSS,WS,NOP,NOP,TS,NOP,NOP,SACK", "iOS 14+"),
+    SynSig( 52,  66, 64000, 66000, "MSS,NOP,WS,NOP,NOP,TS,NOP,NOP,SACK", "macOS/iOS"),
+    SynSig( 52,  66, 64000, 66000, "MSS,SACK,TS,WS", "macOS/iOS (newer)"),
+    SynSig( 52,  66, 64000, 66000, "MSS,WS,NOP,NOP,TS,NOP,NOP,SACK", "iOS 14+"),
     # ── Android ──
-    ( 52,  66, 64000, 66000, "MSS,NOP,WS,NOP,NOP,SACK,NOP,NOP,TS", "Android"),
-    ( 52,  66, 58000, 59000, "MSS,SACK,TS,WS", "Android/Linux"),
-    ( 52,  66, 64000, 66000, "MSS,SACK,TS,WS,NOP,NOP", "Android (kernel 5.x)"),
+    SynSig( 52,  66, 64000, 66000, "MSS,NOP,WS,NOP,NOP,SACK,NOP,NOP,TS", "Android"),
+    SynSig( 52,  66, 58000, 59000, "MSS,SACK,TS,WS", "Android/Linux"),
+    SynSig( 52,  66, 64000, 66000, "MSS,SACK,TS,WS,NOP,NOP", "Android (kernel 5.x)"),
     # ── 网络设备 / IoT ──
-    (240, 260, 1400, 1500, "MSS,NOP,NOP,SACK", "Cisco IOS"),
-    (240, 260, 3800, 3900, "MSS,NOP,NOP,SACK", "Cisco VPN"),
-    ( 50,  66, 1400, 1500, "MSS,NOP,NOP,SACK", "Embedded/IoT (BusyBox)"),
-    ( 60,  70, 2048, 2100, "MSS", "IP Camera / IoT (minimal)"),
+    SynSig(240, 260, 1400, 1500, "MSS,NOP,NOP,SACK", "Cisco IOS"),
+    SynSig(240, 260, 3800, 3900, "MSS,NOP,NOP,SACK", "Cisco VPN"),
+    SynSig( 50,  66, 1400, 1500, "MSS,NOP,NOP,SACK", "Embedded/IoT (BusyBox)"),
+    SynSig( 60,  70, 2048, 2100, "MSS", "IP Camera / IoT (minimal)"),
 ]
+
+_TCP_SYN_LABELS: set[str] = {s.os_label for s in TCP_SYN_SIGS}
 
 OPT_KIND_NAME = {0: None, 1: "NOP", 2: "MSS", 3: "WS", 4: "SACK", 5: "SACK", 8: "TS"}
 
 
+def is_tcp_syn_os_label(label: str | None) -> bool:
+    """判断 os_guess 是否来自 TCP SYN 指纹(高置信度)。"""
+    return bool(label and label in _TCP_SYN_LABELS)
+
+
 def _parse_tcp_options(pkt) -> str | None:
-    """提取 TCP Option 种类顺序,返回逗号分隔字符串。"""
     try:
         from scapy.all import TCP
         tcp = pkt[TCP]
         names = []
         for o in tcp.options:
             kind = o[0]
-            if kind == 0:  # End of Option List
+            if kind == 0:
                 break
             name = OPT_KIND_NAME.get(kind)
             if name:
@@ -210,7 +219,6 @@ def _parse_tcp_options(pkt) -> str | None:
 
 
 def fingerprint_tcp_syn(pkt) -> str | None:
-    """被动 TCP SYN 指纹识别。匹配签名库返回 OS 名称,未匹配返回 None。"""
     try:
         from scapy.all import IP, TCP
         ip = pkt[IP]; tcp = pkt[TCP]
@@ -223,8 +231,9 @@ def fingerprint_tcp_syn(pkt) -> str | None:
         return None
 
     for sig in TCP_SYN_SIGS:
-        if (sig[0] <= ttl <= sig[1] and sig[2] <= win <= sig[3] and opts == sig[4]):
-            return sig[5]
+        if (sig.ttl_lo <= ttl <= sig.ttl_hi and sig.win_lo <= win <= sig.win_hi
+                and opts == sig.options):
+            return sig.os_label
     return None
 
 
@@ -244,6 +253,13 @@ DHCP_VENDOR_MAP = {
 }
 
 
+def _dhcp_decode(val) -> str:
+    """安全解码 DHCP option 值 (bytes → str)。"""
+    if isinstance(val, bytes):
+        return val.decode("utf-8", errors="replace")
+    return str(val or "")
+
+
 def fingerprint_dhcp(pkt) -> tuple[str | None, str | None]:
     """解析 DHCP 请求包,返回 (os_guess, hostname)。"""
     from scapy.all import DHCP, BOOTP
@@ -260,7 +276,7 @@ def fingerprint_dhcp(pkt) -> tuple[str | None, str | None]:
             continue
         key, *vals = opt
         if key == "vendor_class_id" and vals:
-            vstr = str(vals[0]) if vals[0] else ""
+            vstr = _dhcp_decode(vals[0])
             if not vstr:
                 continue
             for pattern, os_name in DHCP_VENDOR_MAP.items():
@@ -270,7 +286,7 @@ def fingerprint_dhcp(pkt) -> tuple[str | None, str | None]:
             if not os_guess:
                 os_guess = vstr[:64]
         elif key == "hostname" and vals:
-            h = str(vals[0]) if vals[0] else ""
+            h = _dhcp_decode(vals[0])
             if h:
                 hostname = h[:255]
 

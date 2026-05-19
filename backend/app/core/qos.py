@@ -2,6 +2,7 @@
 仅支持 Linux。Windows / macOS 上会返回明确错误。
 """
 
+import shutil
 import subprocess
 import sys
 from sqlalchemy.orm import Session
@@ -10,6 +11,8 @@ from ..utils.logger import logger
 
 
 _active: dict[int, dict] = {}  # device_id → {down_kbps, up_kbps}
+_tc_ok: bool | None = None      # 缓存 tc 可用性检查
+_root_ok: set[str] = set()      # 缓存已建立 HTB 根队列的接口名
 
 
 class QosError(RuntimeError):
@@ -18,11 +21,14 @@ class QosError(RuntimeError):
 
 
 def _check_platform() -> None:
-    """确保当前平台支持 tc,否则直接报错。"""
+    global _tc_ok
+    if _tc_ok is not None:
+        return
     if sys.platform != "linux":
         raise QosError("QoS 带宽限速仅支持 Linux 系统 (需要 tc 命令)")
-    if subprocess.run(["which", "tc"], capture_output=True).returncode != 0:
+    if shutil.which("tc") is None:
         raise QosError("未找到 tc 命令,请安装 iproute2")
+    _tc_ok = True
 
 
 def _run(*args: str) -> str:
@@ -41,12 +47,14 @@ def _run(*args: str) -> str:
 
 
 def _ensure_root(iface: str) -> None:
-    """确保接口上有 HTB 根队列。"""
+    if iface in _root_ok:
+        return
     out = _run("tc", "qdisc", "show", "dev", iface)
     if "htb" not in out:
         _run("tc", "qdisc", "add", "dev", iface, "root", "handle", "1:", "htb", "default", "30")
         _run("tc", "class", "add", "dev", iface, "parent", "1:", "classid", "1:30", "htb", "rate", "1000mbit")
         logger.info(f"[qos] created root HTB qdisc on {iface}")
+    _root_ok.add(iface)
 
 
 def _class_id(device_id: int) -> str:

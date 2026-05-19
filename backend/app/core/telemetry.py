@@ -184,7 +184,7 @@ def start_passive_arp(iface: str = "") -> None:
                     return
                 changed = False
                 # 仅在当前无 OS 猜测或 DHCP 提供更好的信息时更新
-                if dhcp_os and (not dev.os_guess or not _is_tcp_syn_os(dev.os_guess)):
+                if dhcp_os and (not dev.os_guess or not fp.is_tcp_syn_os_label(dev.os_guess)):
                     dev.os_guess = dhcp_os
                     changed = True
                 if dhcp_host and not dev.hostname:
@@ -238,15 +238,6 @@ def start_passive_arp(iface: str = "") -> None:
         kwargs["iface"] = iface
     _passive_sniffer = AsyncSniffer(**kwargs)
     _passive_sniffer.start()
-
-
-def _is_tcp_syn_os(os_str: str | None) -> bool:
-    """判断现有 OS 猜测是否来自 TCP SYN 指纹(高置信度,不应被 DHCP 覆盖)。"""
-    if not os_str:
-        return False
-    syn_keywords = ("Windows 10", "Windows 11", "Windows 7", "Windows 8",
-                    "macOS", "iOS", "Android", "Linux (modern)", "Cisco")
-    return any(kw in os_str for kw in syn_keywords)
 
 
 def stop_passive_arp() -> None:

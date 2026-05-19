@@ -1,3 +1,7 @@
+BLOCKED_BY_MANUAL = "manual"
+BLOCKED_BY_SCHEDULE = "schedule"
+BLOCKED_BY_AUTO = "auto"
+
 """阻断模块 — 多后端支持。
 
 后端对比:
@@ -411,7 +415,7 @@ def block_device(
     actor: str = "system",
     reason: str = "",
     blocked_until=None,  # datetime | None,定时到期自动解除
-    blocked_by: str = "manual",
+    blocked_by: str = BLOCKED_BY_MANUAL,
 ) -> None:
     logger.info(
         f"[blocker] block_device called: device_id={device.id} "
