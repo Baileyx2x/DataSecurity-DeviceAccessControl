@@ -29,7 +29,13 @@ def block(device_id: int, reason: str = "manual", gateway_ip: str = "",
 def unblock(device_id: int, reason: str = "manual", db: Session = Depends(get_session)):
     dev = db.get(Device, device_id)
     if not dev: raise HTTPException(404)
+    was_auto = dev.blocked_by == blocker.BLOCKED_BY_AUTO
+    was_black = dev.category == "black"
     blocker.unblock_device(db, dev, actor="user", reason=reason)
+    # 被规则自动阻断且类别为黑名单的设备,放行时重置类别防止立即再次阻断
+    if was_auto and was_black:
+        dev.category = "unknown"
+        db.commit()
     return {"status": "released"}
 
 

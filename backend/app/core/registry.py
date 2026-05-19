@@ -67,4 +67,10 @@ def set_category(db: Session, device_id: int, category: str, actor: str = "user"
     dev.category = category
     db.commit()
     write_audit(db, actor=actor, action=f"set_category:{category}", target_device_id=dev.id, reason=reason)
+
+    # 切换为白名单/未知时,若设备是被规则自动阻断的,则自动放行
+    if category in ("white", "unknown") and dev.status == "blocked" and dev.blocked_by == "auto":
+        from . import blocker as _blocker
+        _blocker.unblock_device(db, dev, actor="system", reason=f"category changed to {category}")
+        logger.info(f"[registry] auto-unblocked {dev.ip}: category → {category}")
     return dev

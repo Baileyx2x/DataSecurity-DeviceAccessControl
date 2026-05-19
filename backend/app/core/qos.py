@@ -13,6 +13,7 @@ from ..utils.logger import logger
 _active: dict[int, dict] = {}  # device_id → {down_kbps, up_kbps}
 _tc_ok: bool | None = None      # 缓存 tc 可用性检查
 _root_ok: set[str] = set()      # 缓存已建立 HTB 根队列的接口名
+_ingress_ok: set[str] = set()   # 缓存已建立 ingress qdisc 的接口名
 
 
 class QosError(RuntimeError):
@@ -41,8 +42,7 @@ def _run(*args: str) -> str:
         raise QosError(f"tc 执行异常: {e}")
     if r.returncode != 0:
         err = r.stderr.strip()
-        if err and "RTNETLINK" not in err:
-            raise QosError(err or f"tc 返回 {r.returncode}")
+        raise QosError(err if err else f"tc 返回 {r.returncode}")
     return r.stdout
 
 
@@ -61,6 +61,22 @@ def _class_id(device_id: int) -> str:
     return f"1:{min(device_id, 9999)}0"
 
 
+def _filter_prio(device_id: int) -> str:
+    """每个 device 唯一的 filter priority,方便精确删除。"""
+    return str((device_id % 65535) + 1)
+
+
+def _ensure_ingress(iface: str) -> None:
+    """确保接口上有 ingress qdisc (每接口仅一个,所有设备共享)。"""
+    if iface in _ingress_ok:
+        return
+    out = _run("tc", "qdisc", "show", "dev", iface)
+    if "ingress" not in out:
+        _run("tc", "qdisc", "add", "dev", iface, "handle", "ffff:", "ingress")
+        logger.info(f"[qos] created ingress qdisc on {iface}")
+    _ingress_ok.add(iface)
+
+
 def limit_device(db: Session, device: Device, iface: str,
                  down_kbps: int = 0, up_kbps: int = 0) -> None:
     """对设备应用带宽限制。仅 Linux 有效,其他平台抛出 QosError。"""
@@ -71,6 +87,7 @@ def limit_device(db: Session, device: Device, iface: str,
 
     _ensure_root(iface)
     cid = _class_id(device.id)
+    prio = _filter_prio(device.id)
     ip = device.ip
 
     if down_kbps > 0:
@@ -81,19 +98,19 @@ def limit_device(db: Session, device: Device, iface: str,
              "ceil", f"{down_kbps}kbit",
              "burst", str(burst))
         _run("tc", "filter", "add", "dev", iface, "protocol", "ip",
-             "parent", "1:", "prio", "1", "u32",
+             "parent", "1:", "prio", prio, "u32",
              "match", "ip", "dst", ip,
              "flowid", cid)
 
     if up_kbps > 0:
-        handle = f"1:{min(device.id, 9999)}"
-        _run("tc", "qdisc", "add", "dev", iface, "handle", f"{handle}:", "ingress")
-        _run("tc", "filter", "add", "dev", iface, "parent", f"{handle}:",
-             "protocol", "ip", "prio", "1", "u32",
+        _ensure_ingress(iface)
+        burst_k = max(up_kbps // 8, 10)
+        _run("tc", "filter", "add", "dev", iface, "parent", "ffff:",
+             "protocol", "ip", "prio", prio, "u32",
              "match", "ip", "src", ip,
              "police", "rate", f"{up_kbps}kbit",
-             "burst", f"{max(up_kbps // 8, 10)}k",
-             "drop", "flowid", f"{handle}:")
+             "burst", f"{burst_k}k",
+             "drop", "flowid", "ffff:")
 
     _active[device.id] = {"down_kbps": down_kbps, "up_kbps": up_kbps}
     device.qos_down_kbps = down_kbps or None
@@ -114,12 +131,31 @@ def remove_limit(db: Session, device: Device, iface: str) -> None:
 
 
 def _remove_tc(device: Device, iface: str) -> None:
+    """移除设备的 tc 规则。不存在的规则静默忽略。"""
     cid = _class_id(device.id)
-    _run("tc", "filter", "del", "dev", iface, "parent", "1:", "prio", "1", "u32",
-         "match", "ip", "dst", device.ip, "flowid", cid)
-    _run("tc", "class", "del", "dev", iface, "classid", cid)
-    handle = f"1:{min(device.id, 9999)}"
-    _run("tc", "qdisc", "del", "dev", iface, "handle", f"{handle}:", "ingress")
+    prio = _filter_prio(device.id)
+    ip = device.ip
+    info = _active.get(device.id, {})
+
+    if info.get("down_kbps", 0) > 0:
+        try:
+            _run("tc", "filter", "del", "dev", iface, "parent", "1:",
+                 "prio", prio, "u32",
+                 "match", "ip", "dst", ip, "flowid", cid)
+        except QosError:
+            pass
+        try:
+            _run("tc", "class", "del", "dev", iface, "classid", cid)
+        except QosError:
+            pass
+
+    if info.get("up_kbps", 0) > 0:
+        try:
+            _run("tc", "filter", "del", "dev", iface, "parent", "ffff:",
+                 "prio", prio, "u32",
+                 "match", "ip", "src", ip)
+        except QosError:
+            pass
 
 
 def get_active() -> dict[int, dict]:

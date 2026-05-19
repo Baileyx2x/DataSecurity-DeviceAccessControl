@@ -51,10 +51,44 @@ def _scan_job():
                         reason=f"auto: rule '{a.rule.name}' triggered",
                         blocked_by=blocker.BLOCKED_BY_AUTO,
                     )
+        # 重新评估已被自动阻断的设备:规则不再匹配则放行
+        _reverse_auto_blocks(db, rules)
     except Exception as e:
         logger.exception(f"[scheduler] scan job failed: {e}")
     finally:
         db.close()
+
+
+def _reverse_auto_blocks(db: Session, rules: list) -> int:
+    """检查被自动阻断的设备:若阻断规则已不再匹配,则放行。返回放行数。"""
+    from datetime import datetime, timedelta
+    blocked_devs = db.query(Device).filter(
+        Device.status == "blocked",
+        Device.blocked_by == blocker.BLOCKED_BY_AUTO,
+    ).all()
+    count = 0
+    for dev in blocked_devs:
+        ctx = {
+            "mac": dev.mac, "ip": dev.ip, "category": dev.category,
+            "vendor": dev.vendor, "hour": datetime.now().hour, "status": dev.status,
+            "is_new": (datetime.now() - dev.first_seen) <= timedelta(seconds=120),
+        }
+        still_block = False
+        for rule in rules:
+            if rule.action != "block":
+                continue
+            try:
+                import json
+                if risk_engine._eval_condition(json.loads(rule.condition_json), ctx):
+                    still_block = True
+                    break
+            except Exception:
+                pass
+        if not still_block:
+            logger.info(f"[scheduler] auto-unblock: {dev.ip} no longer matches any block rule")
+            blocker.unblock_device(db, dev, actor="system", reason="block rule no longer matches")
+            count += 1
+    return count
 
 
 def start_scheduler():
