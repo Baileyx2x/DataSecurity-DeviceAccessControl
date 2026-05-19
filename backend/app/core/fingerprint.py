@@ -1,4 +1,4 @@
-"""设备指纹模块 — OUI 厂商 / mDNS 主机名 / NetBIOS / OS 推测。"""
+"""设备指纹模块 — OUI 厂商 / mDNS 主机名 / NetBIOS / OS 推测 / TCP SYN 被动指纹 / DHCP 指纹。"""
 
 import socket
 import subprocess
@@ -154,3 +154,124 @@ def _ping_ttl(ip: str) -> int | None:
     except Exception:
         pass
     return None
+
+
+# ===================================================================
+#  TCP SYN 被动指纹 (p0f 风格)
+# ===================================================================
+
+# 签名格式: (ttl_lo, ttl_hi, win_lo, win_hi, options_pattern, os_label)
+TCP_SYN_SIGS: list[tuple] = [
+    # ── Windows ──
+    (120, 130, 64000, 66000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows 10/11"),
+    (120, 130, 64000, 66000, "MSS,WS,NOP,NOP,SACK", "Windows 10/11 (variant)"),
+    (120, 130, 16000, 17000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows Vista/7"),
+    (120, 130,  8100,  8300, "MSS,NOP,WS,NOP,NOP,SACK", "Windows 7/8"),
+    (120, 130, 32000, 33000, "MSS,NOP,WS,NOP,NOP,SACK", "Windows Server"),
+    # ── Linux ──
+    ( 52,  66, 28000, 30000, "MSS,SACK,TS,WS", "Linux (modern)"),
+    ( 52,  66, 28000, 30000, "MSS,SACK,TS,WS,NOP,NOP", "Linux"),
+    ( 52,  66, 57000, 59000, "MSS,SACK,TS,WS", "Linux (ARM/IoT)"),
+    ( 52,  66, 14000, 14500, "MSS,SACK,TS,WS", "Linux (older)"),
+    # ── macOS / iOS ──
+    ( 52,  66, 64000, 66000, "MSS,NOP,WS,NOP,NOP,TS,NOP,NOP,SACK", "macOS/iOS"),
+    ( 52,  66, 64000, 66000, "MSS,SACK,TS,WS", "macOS/iOS (newer)"),
+    ( 52,  66, 64000, 66000, "MSS,WS,NOP,NOP,TS,NOP,NOP,SACK", "iOS 14+"),
+    # ── Android ──
+    ( 52,  66, 64000, 66000, "MSS,NOP,WS,NOP,NOP,SACK,NOP,NOP,TS", "Android"),
+    ( 52,  66, 58000, 59000, "MSS,SACK,TS,WS", "Android/Linux"),
+    ( 52,  66, 64000, 66000, "MSS,SACK,TS,WS,NOP,NOP", "Android (kernel 5.x)"),
+    # ── 网络设备 / IoT ──
+    (240, 260, 1400, 1500, "MSS,NOP,NOP,SACK", "Cisco IOS"),
+    (240, 260, 3800, 3900, "MSS,NOP,NOP,SACK", "Cisco VPN"),
+    ( 50,  66, 1400, 1500, "MSS,NOP,NOP,SACK", "Embedded/IoT (BusyBox)"),
+    ( 60,  70, 2048, 2100, "MSS", "IP Camera / IoT (minimal)"),
+]
+
+OPT_KIND_NAME = {0: None, 1: "NOP", 2: "MSS", 3: "WS", 4: "SACK", 5: "SACK", 8: "TS"}
+
+
+def _parse_tcp_options(pkt) -> str | None:
+    """提取 TCP Option 种类顺序,返回逗号分隔字符串。"""
+    try:
+        from scapy.all import TCP
+        tcp = pkt[TCP]
+        names = []
+        for o in tcp.options:
+            kind = o[0]
+            if kind == 0:  # End of Option List
+                break
+            name = OPT_KIND_NAME.get(kind)
+            if name:
+                names.append(name)
+        return ",".join(names) if names else None
+    except Exception:
+        return None
+
+
+def fingerprint_tcp_syn(pkt) -> str | None:
+    """被动 TCP SYN 指纹识别。匹配签名库返回 OS 名称,未匹配返回 None。"""
+    try:
+        from scapy.all import IP, TCP
+        ip = pkt[IP]; tcp = pkt[TCP]
+        ttl = ip.ttl; win = tcp.window
+    except Exception:
+        return None
+
+    opts = _parse_tcp_options(pkt)
+    if not opts:
+        return None
+
+    for sig in TCP_SYN_SIGS:
+        if (sig[0] <= ttl <= sig[1] and sig[2] <= win <= sig[3] and opts == sig[4]):
+            return sig[5]
+    return None
+
+
+# ===================================================================
+#  DHCP 指纹 (Option 60 Vendor Class / Option 12 Hostname)
+# ===================================================================
+
+DHCP_VENDOR_MAP = {
+    "MSFT 5.0": "Windows 10/11",
+    "MSFT": "Windows",
+    "android-dhcp": "Android",
+    "dhcpcd": "Android/Linux",
+    "udhcp": "Embedded Linux (IoT)",
+    "dnsmasq": "Linux/OpenWrt",
+    "dnsmasq-dhcp": "Linux (dnsmasq)",
+    "ISC DHCP": "Linux/BSD",
+}
+
+
+def fingerprint_dhcp(pkt) -> tuple[str | None, str | None]:
+    """解析 DHCP 请求包,返回 (os_guess, hostname)。"""
+    from scapy.all import DHCP, BOOTP
+    if not pkt.haslayer(BOOTP) or not pkt.haslayer(DHCP):
+        return None, None
+
+    os_guess: str | None = None
+    hostname: str | None = None
+
+    for opt in pkt[DHCP].options:
+        if opt == "end":
+            break
+        if not isinstance(opt, tuple) or len(opt) < 2:
+            continue
+        key, *vals = opt
+        if key == "vendor_class_id" and vals:
+            vstr = str(vals[0]) if vals[0] else ""
+            if not vstr:
+                continue
+            for pattern, os_name in DHCP_VENDOR_MAP.items():
+                if vstr.lower().startswith(pattern.lower()):
+                    os_guess = os_name
+                    break
+            if not os_guess:
+                os_guess = vstr[:64]
+        elif key == "hostname" and vals:
+            h = str(vals[0]) if vals[0] else ""
+            if h:
+                hostname = h[:255]
+
+    return os_guess, hostname
