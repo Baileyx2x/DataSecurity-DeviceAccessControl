@@ -538,6 +538,10 @@ def block_device(
         except Exception as e:
             logger.error(f"[blocker] ssh_iptables block failed for {device.ip}: {e}")
 
+    # 仅在 backend 实际执行成功后才标记为 blocked
+    if device.id not in _active:
+        return
+
     device.status = "blocked"
     device.blocked_by = blocked_by
     if blocked_until is not None:
