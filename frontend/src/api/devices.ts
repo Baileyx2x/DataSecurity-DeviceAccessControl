@@ -38,3 +38,4 @@ export const unblockDevice  = (id: number, reason="manual") => api.post(`/blocke
 export const limitBandwidth = (id: number, down_kbps: number, up_kbps: number) =>
   api.post(`/qos/${id}/limit`, { down_kbps, up_kbps });
 export const unlimitBandwidth = (id: number) => api.post(`/qos/${id}/unlimit`);
+export const deleteDevice = (id: number) => api.delete(`/devices/${id}`);

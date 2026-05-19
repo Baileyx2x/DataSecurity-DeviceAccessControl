@@ -87,3 +87,26 @@ def set_schedule(device_id: int, data: dict, db: Session = Depends(get_session))
 @router.post("/{device_id}/blacklist")
 def to_blacklist(device_id: int, db: Session = Depends(get_session)):
     return registry.set_category(db, device_id, "black", actor="user").__dict__
+
+
+@router.delete("/{device_id}")
+def delete_device(device_id: int, db: Session = Depends(get_session)):
+    """删除设备及其所有关联记录(告警/接入日志/审计/流量/阻断规则)。"""
+    dev = db.get(Device, device_id)
+    if not dev:
+        raise HTTPException(404)
+    # 若正被阻断,先清理后端规则
+    if dev.status == "blocked":
+        from ..core import blocker as _blocker
+        try:
+            _blocker.unblock_device(db, dev, actor="system", reason="device deleted")
+        except Exception:
+            pass
+    db.query(AccessLog).filter(AccessLog.device_id == device_id).delete()
+    db.query(Alert).filter(Alert.device_id == device_id).delete()
+    db.query(AuditLog).filter(AuditLog.target_device_id == device_id).delete()
+    from ..models.traffic import DeviceTraffic
+    db.query(DeviceTraffic).filter(DeviceTraffic.device_id == device_id).delete()
+    db.delete(dev)
+    db.commit()
+    return {"ok": True}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Drawer, Descriptions, Tabs, Table, Tag, Spin, TimePicker, InputNumber, Button, message, Space, Card } from "antd";
-import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, setSchedule, limitBandwidth, unlimitBandwidth, Device } from "../../api/devices";
+import { Drawer, Descriptions, Tabs, Table, Tag, Spin, TimePicker, InputNumber, Button, message, Space, Card, Popconfirm } from "antd";
+import { getDevice, getDeviceHistory, getDeviceAlerts, getDeviceAudit, setSchedule, limitBandwidth, unlimitBandwidth, deleteDevice, Device } from "../../api/devices";
 import { RISK_COLORS, RISK_NAMES, CATEGORY_COLOR, STATUS_COLOR, formatTime } from "../../constants";
 import dayjs from "dayjs";
 
@@ -70,6 +70,12 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
       .then(() => { setQosDown(null); setQosUp(null); message.success("已取消限速"); loadDetail(); })
       .catch(() => message.error("取消失败"))
       .finally(() => setQosLoading(false));
+  };
+
+  const handleDelete = () => {
+    deleteDevice(deviceId)
+      .then(() => { message.success("设备已删除"); onClose(); })
+      .catch(() => message.error("删除失败"));
   };
 
   if (!dev) return <Drawer open={open} onClose={onClose}><Spin /></Drawer>;
@@ -150,6 +156,17 @@ export default function DeviceDetail({ deviceId, open, onClose }: Props) {
           )}
         </Space>
       </Card>
+
+      <Popconfirm
+        title="确定删除此设备？"
+        description="将同时删除该设备的接入历史、告警、操作审计和流量记录,此操作不可撤销。"
+        onConfirm={handleDelete}
+        okText="确认删除"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        <Button type="primary" danger block>删除设备及全部记录</Button>
+      </Popconfirm>
     </>
   );
 
