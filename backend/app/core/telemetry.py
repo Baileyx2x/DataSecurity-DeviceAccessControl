@@ -17,8 +17,10 @@ from ..utils.logger import logger
 
 
 OFFLINE_THRESHOLD_SEC = 120
+PROBE_CONSECUTIVE_THRESHOLD = 2  # 连续几次探测失败即判离线
 
 _passive_sniffer: object | None = None  # AsyncSniffer | None
+_probe_failures: dict[int, int] = {}   # device_id → 连续失败次数
 
 
 def mark_online(db: Session, device_id: int, ip: str) -> None:
@@ -43,6 +45,52 @@ def reap_offline(db: Session) -> int:
         manager.broadcast_sync(device_offline(dev))
 
     return len(gone)
+
+
+def _ping(ip: str, timeout: float = 1.0) -> bool:
+    """用系统 ping 快速探活,返回是否可达。"""
+    import sys as _sys
+    param = "-n 1 -w 1000" if _sys.platform == "win32" else "-c 1 -W 1"
+    import subprocess as _sp
+    try:
+        _sp.run(
+            f"ping {param} {ip}",
+            shell=True, timeout=timeout + 0.5,
+            stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def probe_offline() -> int:
+    """对所有 online 设备发起 ICMP ping,连续 N 次失败则判离线。由 scheduler 每 5s 调用。"""
+    db = SessionLocal()
+    try:
+        devices = db.query(Device).filter(Device.status == "online").all()
+        changed = 0
+        for dev in devices:
+            if _ping(dev.ip):
+                _probe_failures.pop(dev.id, None)
+            else:
+                _probe_failures[dev.id] = _probe_failures.get(dev.id, 0) + 1
+                if _probe_failures[dev.id] >= PROBE_CONSECUTIVE_THRESHOLD:
+                    dev.status = "offline"
+                    db.add(AccessLog(device_id=dev.id, event_type="offline", ip=dev.ip))
+                    _probe_failures.pop(dev.id, None)
+                    logger.info(f"[telemetry] probe offline: {dev.ip} ({dev.mac}) no response ×{PROBE_CONSECUTIVE_THRESHOLD}")
+                    changed += 1
+        if changed:
+            db.commit()
+            for dev in devices:
+                if dev.status == "offline":
+                    manager.broadcast_sync(device_offline(dev))
+        return changed
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def sample_traffic(db: Session, cidr: str, iface: str, duration: int = 5):
@@ -153,6 +201,15 @@ def start_passive_arp(iface: str = "") -> None:
             try:
                 dev = db.query(Device).filter(Device.mac == src_mac).first()
                 if dev is None:
+                    # 新设备立即注册,无需等定时扫描
+                    from ..utils.oui import lookup_vendor
+                    from . import registry
+                    vendor = lookup_vendor(src_mac)
+                    dev = registry.upsert_device(
+                        db, mac=src_mac, ip=src_ip, vendor=vendor,
+                    )
+                    manager.broadcast_sync(device_online(dev))
+                    logger.info(f"[telemetry] passive ARP discovered new device: {src_ip} ({src_mac})")
                     return
                 if dev.status == "online" and dev.ip == src_ip:
                     return

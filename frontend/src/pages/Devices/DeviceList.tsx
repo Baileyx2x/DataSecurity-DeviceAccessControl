@@ -1,14 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Table, Tag, Button, Space, message } from "antd";
 import { listDevices, setWhitelist, setBlacklist, blockDevice, unblockDevice, Device } from "../../api/devices";
 import DeviceDetail from "./DeviceDetail";
 import { CATEGORY_COLOR, STATUS_COLOR, RISK_COLORS, RISK_NAMES } from "../../constants";
 
+const POLL_INTERVAL_MS = 15_000;
+
 export default function DeviceList() {
   const [data, setData] = useState<Device[]>([]);
   const [detailId, setDetailId] = useState<number>(0);
+  const wsRef = useRef<WebSocket | null>(null);
+
   const load = () => listDevices().then(r => setData(r.data));
-  useEffect(() => { load(); }, []);
+
+  // 初始加载 + 定时轮询
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  // WebSocket 实时更新
+  useEffect(() => {
+    const wsUrl = import.meta.env.DEV
+      ? `ws://${window.location.host}/ws/realtime`
+      : ((import.meta.env.VITE_WS_BASE ?? `ws://${window.location.host}/ws`) + "/realtime");
+    let closed = false;
+    const connect = () => {
+      if (closed) return;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      ws.onmessage = (e) => {
+        try {
+          const evt = JSON.parse(e.data);
+          if (evt.type === "device.online" || evt.type === "device.offline") {
+            load();
+          }
+        } catch {}
+      };
+      ws.onclose = () => { if (!closed) setTimeout(connect, 5000); };
+    };
+    connect();
+    return () => { closed = true; wsRef.current?.close(); };
+  }, []);
 
   const columns = [
     { title: "名称",     dataIndex: "name" },

@@ -99,8 +99,9 @@ def start_scheduler():
     global _scheduler
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(_scan_job, "interval", seconds=settings.scan_interval_sec, id="scan")
+    _scheduler.add_job(_probe_job, "interval", seconds=5, id="probe")
     _scheduler.start()
-    logger.info(f"[scheduler] started (interval={settings.scan_interval_sec}s)")
+    logger.info(f"[scheduler] started (scan={settings.scan_interval_sec}s probe=5s)")
 
     iface = settings.lan_interface or discovery.detect_interface()
     telemetry.start_passive_arp(iface=iface)
@@ -108,6 +109,16 @@ def start_scheduler():
         qos.restore_limits(SessionLocal(), iface)
     except Exception:
         pass
+
+
+def _probe_job():
+    """快速探活:每 5s 对 online 设备发 ICMP ping,连续失败即判离线。"""
+    try:
+        n = telemetry.probe_offline()
+        if n:
+            logger.info(f"[scheduler] probe marked {n} device(s) offline")
+    except Exception as e:
+        logger.exception(f"[scheduler] probe job failed: {e}")
 
 
 def _expire_blocks(db: Session) -> int:
