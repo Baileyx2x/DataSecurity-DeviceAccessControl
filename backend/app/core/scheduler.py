@@ -99,7 +99,8 @@ def start_scheduler():
     global _scheduler
     _scheduler = BackgroundScheduler()
     _scheduler.add_job(_scan_job, "interval", seconds=settings.scan_interval_sec, id="scan")
-    _scheduler.add_job(_probe_job, "interval", seconds=5, id="probe")
+    _scheduler.add_job(_probe_job, "interval", seconds=5, id="probe",
+                       misfire_grace_time=3, max_instances=2)
     _scheduler.start()
     logger.info(f"[scheduler] started (scan={settings.scan_interval_sec}s probe=5s)")
 

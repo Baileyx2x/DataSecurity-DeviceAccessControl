@@ -4,6 +4,7 @@ import ipaddress
 import json
 import threading
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
@@ -47,10 +48,10 @@ def reap_offline(db: Session) -> int:
     return len(gone)
 
 
-def _ping(ip: str, timeout: float = 1.0) -> bool:
+def _ping(ip: str, timeout: float = 0.5) -> bool:
     """用系统 ping 快速探活,返回是否可达。"""
     import sys as _sys
-    param = "-n 1 -w 1000" if _sys.platform == "win32" else "-c 1 -W 1"
+    param = "-n 1 -w 500" if _sys.platform == "win32" else "-c 1 -W 1"
     import subprocess as _sp
     try:
         _sp.run(
@@ -64,13 +65,30 @@ def _ping(ip: str, timeout: float = 1.0) -> bool:
 
 
 def probe_offline() -> int:
-    """对所有 online 设备发起 ICMP ping,连续 N 次失败则判离线。由 scheduler 每 5s 调用。"""
+    """对所有 online 设备并行 ICMP ping,连续 N 次失败则判离线。由 scheduler 每 5s 调用。"""
     db = SessionLocal()
     try:
         devices = db.query(Device).filter(Device.status == "online").all()
+        if not devices:
+            return 0
+
+        # 并行 ping 所有设备,避免串行等待导致单次耗时过长被 APScheduler 跳过
+        results: dict[int, bool] = {}
+        with ThreadPoolExecutor(max_workers=min(len(devices), 32)) as pool:
+            futures = {pool.submit(_ping, d.ip): d.id for d in devices}
+            try:
+                for f in as_completed(futures, timeout=10):
+                    did = futures[f]
+                    try:
+                        results[did] = f.result()
+                    except Exception:
+                        results[did] = False
+            except Exception:
+                pass  # 超时未完成的 future 视作 ping 失败
+
         changed = 0
         for dev in devices:
-            if _ping(dev.ip):
+            if results.get(dev.id, False):
                 _probe_failures.pop(dev.id, None)
             else:
                 _probe_failures[dev.id] = _probe_failures.get(dev.id, 0) + 1
